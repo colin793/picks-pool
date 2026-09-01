@@ -53,3 +53,50 @@ th { font-size: 12px; color: #71717a; cursor: pointer; user-select: none; }
 .grow { flex: 1; }
 .err { color: #b91c1c; font-size: 14px; }
 .note { font-size: 13px; color: #52525b; }
+
+/* Sign-in hero */
+.hero {
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 24px 16px;
+  background: linear-gradient(160deg, #0f172a 0%, #1e3a8a 60%, #1d4ed8 100%);
+}
+.hero .authcard {
+  background: #fff; border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 400px;
+  box-shadow: 0 24px 60px rgba(2, 6, 23, .45);
+}
+.hero .mark {
+  width: 64px; height: 64px; border-radius: 50%; background: #eff6ff;
+  display: flex; align-items: center; justify-content: center; font-size: 32px;
+  margin: -60px auto 12px; border: 4px solid #fff; box-shadow: 0 8px 20px rgba(2, 6, 23, .25);
+}
+.hero h1 { text-align: center; font-size: 26px; margin: 0 0 4px; letter-spacing: -.5px; }
+.hero .tag { text-align: center; color: #52525b; font-size: 14px; margin: 0 0 20px; }
+.hero .btn { width: 100%; padding: 12px; font-size: 16px; }
+.hero .feats { display: flex; gap: 8px; margin-top: 20px; }
+.hero .feat {
+  flex: 1; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 10px; padding: 10px 6px; text-align: center; color: #e2e8f0; font-size: 12px;
+  font-weight: 600; max-width: 400px;
+}
+.hero .feat span { display: block; font-size: 20px; margin-bottom: 4px; }
+.hero .foot { color: #94a3b8; font-size: 12px; margin-top: 20px; text-align: center; }
+
+/* Signed-in home */
+.homehead { padding: 28px 0 8px; }
+.homehead .hi { font-size: 24px; font-weight: 800; margin: 0; letter-spacing: -.5px; }
+.homehead .sub { color: #52525b; font-size: 14px; margin: 4px 0 0; }
+.leaguecard {
+  display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid #e4e4e7;
+  border-left: 6px solid var(--lc, #1d4ed8); border-radius: 12px; padding: 16px; margin-bottom: 12px;
+  transition: transform .08s ease, box-shadow .08s ease;
+}
+.leaguecard:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(2, 6, 23, .08); }
+.leaguecard .lname { font-weight: 700; font-size: 16px; color: #18181b; flex: 1; }
+.leaguecard .go { color: #a1a1aa; font-size: 18px; }
+.actionrow { display: flex; gap: 12px; margin-top: 8px; }
+.actioncard {
+  flex: 1; text-align: center; background: #fff; border: 1px dashed #d4d4d8; border-radius: 12px;
+  padding: 18px 10px; font-weight: 700; font-size: 14px; color: #3f3f46;
+}
+.actioncard span { display: block; font-size: 22px; margin-bottom: 6px; }
+.actioncard:hover { border-color: #1d4ed8; color: #1d4ed8; }
