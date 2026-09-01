@@ -18,28 +18,33 @@ export default async function Home() {
 
   return (
     <div className="wrap">
-      <h1>Hey {profile?.display_name || 'there'} {profile?.emoji}</h1>
-      {leagues.length === 0 && (
-        <div className="card">
-          <p>You're not in a league yet. Create one, or open the invite link someone sent you.</p>
-        </div>
-      )}
+      <div className="homehead">
+        <p className="hi">{profile?.emoji} Hey, {profile?.display_name || 'there'}</p>
+        <p className="sub">
+          {leagues.length === 0
+            ? 'No leagues yet. Start one, or open the invite link someone sent you.'
+            : 'Pick a league.'}
+        </p>
+      </div>
+
       {leagues.map((l) => (
         <Link key={l.id} href={`/l/${l.id}`}>
-          <div className="card row">
-            {l.logo_url ? <img src={l.logo_url} alt="" height={32} /> : null}
-            <strong className="grow" style={{ color: l.color1 }}>{l.name}</strong>
-            <span>&rarr;</span>
+          <div className="leaguecard" style={{ '--lc': l.color1 }}>
+            {l.logo_url ? <img src={l.logo_url} alt="" height={36} /> : null}
+            <span className="lname">{l.name}</span>
+            <span className="go">&rarr;</span>
           </div>
         </Link>
       ))}
-      <div className="card row">
-        <Link className="btn" href="/new">Create a league</Link>
-        <Link className="btn gray" href="/settings">My settings</Link>
-        <form action={signOut} className="grow" style={{ textAlign: 'right' }}>
-          <button className="note" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Sign out</button>
-        </form>
+
+      <div className="actionrow">
+        <Link className="actioncard" href="/new"><span>➕</span>Create a league</Link>
+        <Link className="actioncard" href="/settings"><span>⚙️</span>My settings</Link>
       </div>
+
+      <form action={signOut} style={{ textAlign: 'center', marginTop: 24 }}>
+        <button className="note" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Sign out</button>
+      </form>
     </div>
   );
 }
