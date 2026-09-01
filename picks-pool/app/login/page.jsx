@@ -21,15 +21,20 @@ export default function Login() {
   }
 
   return (
-    <div className="wrap">
-      <h1>Picks Pool</h1>
-      <div className="card">
+    <div className="hero">
+      <div className="authcard">
+        <div className="mark">🏈</div>
+        <h1>Picks Pool</h1>
+        <p className="tag">Pick winners. A buck a week. Most correct takes the pot.</p>
         {state === 'sent' ? (
-          <p>Check your email. The sign-in link lands in a minute or two.</p>
+          <p style={{ textAlign: 'center' }}>
+            Check your email.<br />
+            <span className="note">The sign-in link lands in a minute or two. First time? Peek at spam.</span>
+          </p>
         ) : (
           <form onSubmit={send}>
             <label>Email</label>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoFocus />
             <button className="btn" disabled={state === 'sending'}>
               {state === 'sending' ? 'Sending…' : 'Email me a sign-in link'}
             </button>
@@ -37,7 +42,12 @@ export default function Login() {
           </form>
         )}
       </div>
-      <p className="note">No passwords. You get a link, you tap it, you're in.</p>
+      <div className="feats">
+        <div className="feat"><span>📺</span>Live scores</div>
+        <div className="feat"><span>💸</span>Venmo the pot</div>
+        <div className="feat"><span>📅</span>Play any week</div>
+      </div>
+      <p className="foot">No passwords. You get a link, you tap it, you're in.</p>
     </div>
   );
 }
