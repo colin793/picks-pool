@@ -10,15 +10,15 @@ function dayOf(iso) {
   return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' }).format(new Date(iso));
 }
 
-export default function PicksForm({ leagueId, season, slate, games, initialPicks, initialTiebreaker, entry, unit = 'points', fixedNow }) {
+export default function PicksForm({ leagueId, season, slate, games, initialPicks, initialTiebreaker, entry, unit = 'points', serverNow, fixedNow }) {
   const [picks, setPicks] = useState(initialPicks);
   const [tb, setTb] = useState(initialTiebreaker ?? '');
   const [msg, setMsg] = useState(null); // { kind: 'ok'|'warn'|'err', text }
   const [pending, start] = useTransition();
-  const ticking = useNow();
+  const ticking = useNow(serverNow);
   const now = fixedNow ?? ticking;
 
-  const lastGame = games[games.length - 1];
+  const lastGame = [...games].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff) || String(a.id).localeCompare(String(b.id))).at(-1);
   const tbLocked = lastGame ? new Date(lastGame.kickoff).getTime() <= now : true;
   const openGames = useMemo(() => games.filter((g) => new Date(g.kickoff).getTime() > now), [games, now]);
   const pickedOpen = openGames.filter((g) => picks[g.id]).length;

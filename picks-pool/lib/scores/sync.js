@@ -5,7 +5,7 @@
 
 import { admin } from '../supabase.js';
 import { sport as sportOf } from './sports.js';
-import { pullWeek, pullDates } from './pull.js';
+import { pullWeek, pullDates, pullSpecificWeek } from './pull.js';
 
 const THROTTLE_MS = 120_000;
 
@@ -23,6 +23,19 @@ export async function syncSport(sportKey, force = false) {
 
   const { rows, current } = result;
   if (rows.length) await db.from('games').upsert(rows);
+
+  // Week mode: when the board rolls to a new week, keep scoring the old one
+  // until every game there is final (a Monday game that was 'in' at the
+  // last sync would otherwise never finish).
+  if (s.mode === 'week' && state?.slate_key && state.slate_key !== current.key) {
+    const { count } = await db.from('games').select('id', { count: 'exact', head: true })
+      .eq('sport', sportKey).eq('slate_key', state.slate_key).neq('state', 'post');
+    if (count) {
+      const [season, type, week] = state.slate_key.split('-').map(Number);
+      const old = await pullSpecificWeek(sportKey, season, type, week);
+      if (old?.length) await db.from('games').upsert(old);
+    }
+  }
   const next = {
     sport: sportKey,
     season: current.season,

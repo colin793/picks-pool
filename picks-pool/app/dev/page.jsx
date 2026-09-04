@@ -18,7 +18,7 @@ export default function Preview({ searchParams }) {
   if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_PREVIEW) notFound();
   const view = searchParams?.view ?? 'picks';
   const sport = sportOf(LEAGUE.sport);
-  const slate = { season: 2026, key: '2026-2-01', label: 'Week 1' };
+  const slate = { season: 2026, key: '2026-2-00', label: 'Demo Week' };
   const me = 'u-colin';
   const myEntry = ENTRIES.find((e) => e.user_id === me);
   const picks = visiblePicks(me, NOW);
@@ -44,7 +44,7 @@ export default function Preview({ searchParams }) {
         />
       ) : view === 'board' ? (
         <BoardView
-          league={LEAGUE} sport={sport} label={slate.label} isCurrent slates={[{ key: slate.key, label: 'Week 1' }, { key: '2026-2-00', label: 'Preseason' }]}
+          league={LEAGUE} sport={sport} label={slate.label} isCurrent slates={[{ key: '2026-2-01', label: 'Week 1' }, { key: slate.key, label: 'Demo Week' }]}
           slateKey={slate.key} games={GAMES} entries={ENTRIES} picks={picks} names={NAMES} me={me} now={NOW}
         />
       ) : (

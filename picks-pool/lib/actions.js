@@ -103,7 +103,8 @@ export async function savePicks(leagueId, season, slateKey, picks, tiebreaker) {
   const db = sb();
   const wanted = Object.entries(picks ?? {}).filter(([, s]) => s === 'HOME' || s === 'AWAY');
 
-  const { data: league } = await db.from('leagues').select('sport').eq('id', leagueId).single();
+  const { data: league } = await db.from('leagues').select('sport').eq('id', leagueId).maybeSingle();
+  if (!league) throw new Error('You are no longer in this league.');
   const { data: games } = await db
     .from('games').select('id, kickoff')
     .eq('sport', league.sport).eq('season', season).eq('slate_key', slateKey);
@@ -153,8 +154,10 @@ export async function savePicks(leagueId, season, slateKey, picks, tiebreaker) {
 }
 
 export async function withdrawEntry(leagueId, entryId) {
-  const { error } = await sb().from('entries').delete().eq('id', entryId); // RLS: own + unlocked, or commissioner
+  // RLS: own + unlocked, or commissioner. A filtered-out delete is not an error, so check the count.
+  const { data, error } = await sb().from('entries').delete().eq('id', entryId).select('id');
   if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error('Your entry is locked: one of your picked games has started.');
   revalidatePath(`/l/${leagueId}`, 'layout');
 }
 

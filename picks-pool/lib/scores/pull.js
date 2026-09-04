@@ -36,12 +36,15 @@ export async function pullWeek(sportKey) {
   return { rows, current };
 }
 
-// Date mode: one request for today through four days out (ET), bucketed by
+// Date mode: one request for yesterday through four days out (ET), bucketed by
 // calendar day. The current slate is the first day with a game not yet final.
 export async function pullDates(sportKey) {
+  // Yesterday is included so a late game that ended after midnight ET still
+  // gets its final; it can never become the current slate, though.
   const today = easternDate(new Date().toISOString());
+  const start = easternDate(new Date(Date.now() - 86_400_000).toISOString());
   const end = easternDate(new Date(Date.now() + 4 * 86_400_000).toISOString());
-  const data = await fetchScoreboard(sportKey, { dates: `${today.replaceAll('-', '')}-${end.replaceAll('-', '')}` });
+  const data = await fetchScoreboard(sportKey, { dates: `${start.replaceAll('-', '')}-${end.replaceAll('-', '')}` });
   if (!data) return null;
   // Range queries omit the top-level season; each event carries its own.
   const first = data.events?.[0];
@@ -63,8 +66,17 @@ export async function pullDates(sportKey) {
     const slate = dateSlate(season, type, key);
     const dayRows = byDay.get(key).map((ev) => normalizeEvent(sportKey, ev, slate)).filter(Boolean);
     rows.push(...dayRows);
-    if (!currentKey && dayRows.some((g) => g.state !== 'post')) currentKey = key;
+    if (!currentKey && key >= today && dayRows.some((g) => g.state !== 'post')) currentKey = key;
   }
-  currentKey ??= days[0];
+  currentKey ??= days.find((d) => d >= today) ?? days.at(-1);
   return { rows, current: dateSlate(season, type, currentKey) };
+}
+
+// One specific week of a week-mode sport, e.g. to finish scoring the slate
+// that ESPN's default board just rolled past.
+export async function pullSpecificWeek(sportKey, season, seasonType, week) {
+  const data = await fetchScoreboard(sportKey, { seasontype: seasonType, week, dates: season });
+  if (!data) return null;
+  const slate = weekSlate(sportKey, season, seasonType, week);
+  return (data.events ?? []).map((ev) => normalizeEvent(sportKey, ev, slate)).filter(Boolean);
 }

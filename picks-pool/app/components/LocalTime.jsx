@@ -11,10 +11,12 @@ export default function LocalTime({ iso, extra = {} }) {
   return <time dateTime={iso}>{text}</time>;
 }
 
-// Ticks every `ms` so lock state moves while a page sits open.
-export function useNow(ms = 30_000) {
-  const [now, setNow] = useState(() => Date.now());
+// Ticks every `ms` so lock state moves while a page sits open. Seeded with
+// the server's clock so the first client render matches the server render.
+export function useNow(initial, ms = 30_000) {
+  const [now, setNow] = useState(initial ?? Date.now());
   useEffect(() => {
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), ms);
     return () => clearInterval(id);
   }, [ms]);

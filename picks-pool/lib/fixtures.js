@@ -39,7 +39,7 @@ function game(id, away, home, slot, opts = {}) {
   const state = opts.state ?? (hoursFromNow <= -3.5 ? 'post' : hoursFromNow <= 0 ? 'in' : 'pre');
   const hs = opts.hs ?? 0, as = opts.as ?? 0;
   return {
-    id, sport: 'nfl', season: 2026, season_type: 2, slate_key: '2026-2-01', slate_label: 'Week 1',
+    id, sport: 'nfl', season: 2026, season_type: 2, slate_key: '2026-2-00', slate_label: 'Demo Week',
     kickoff,
     home_abbr: h.abbr, home_name: h.name, home_logo: h.logo, home_color: h.color,
     away_abbr: a.abbr, away_name: a.name, away_logo: a.logo, away_color: a.color,
@@ -94,7 +94,7 @@ const TB = { 'u-colin': 44, 'u-kevin': 51, 'u-brian': null, 'u-sam': 38, 'u-jess
 const PAID = new Set(['u-colin', 'u-kevin', 'u-sam', 'u-jess']);
 
 export const ENTRIES = PLAYERS.map((p) => ({
-  id: `e-${p.id}`, league_id: LEAGUE.id, user_id: p.id, season: 2026, slate_key: '2026-2-01',
+  id: `e-${p.id}`, league_id: LEAGUE.id, user_id: p.id, season: 2026, slate_key: '2026-2-00',
   tiebreaker: p.id === 'u-colin' ? TB[p.id] : null, // others hidden until the last kickoff
   paid: PAID.has(p.id), created_at: at(-80),
 }));

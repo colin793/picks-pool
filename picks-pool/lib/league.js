@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { sb, currentUser } from './supabase';
 import { syncSport } from './scores/sync';
 import { sport as sportOf } from './scores/sports';
+import { fetchAll } from './db';
 
 export async function leagueContext(id) {
   const user = await currentUser();
@@ -28,7 +29,7 @@ export async function currentSlate(league) {
 // the board view so other players' tiebreakers stay hidden until lock.
 export async function loadSlate(db, league, season, slateKey) {
   const [{ data: games }, { data: entries }, { data: members }] = await Promise.all([
-    db.from('games').select('*').eq('sport', league.sport).eq('season', season).eq('slate_key', slateKey).order('kickoff'),
+    db.from('games').select('*').eq('sport', league.sport).eq('season', season).eq('slate_key', slateKey).order('kickoff').order('id'),
     db.from('entries_board').select('*').eq('league_id', league.id).eq('season', season).eq('slate_key', slateKey),
     db.from('memberships').select('user_id, profiles(id, display_name, emoji, venmo_handle)').eq('league_id', league.id),
   ]);
@@ -42,10 +43,23 @@ export async function loadSlate(db, league, season, slateKey) {
 
 // Slates this league's sport has games for this season, newest first.
 export async function slateList(db, league, season) {
-  const { data } = await db
+  const data = await fetchAll(() => db
     .from('games').select('slate_key, slate_label, kickoff')
-    .eq('sport', league.sport).eq('season', season).order('kickoff');
+    .eq('sport', league.sport).eq('season', season).order('kickoff'));
   const seen = new Map();
-  for (const g of data ?? []) if (!seen.has(g.slate_key)) seen.set(g.slate_key, g.slate_label);
+  for (const g of data) if (!seen.has(g.slate_key)) seen.set(g.slate_key, g.slate_label);
   return [...seen.entries()].map(([key, label]) => ({ key, label })).reverse();
+}
+
+// Season-wide rows for one league: games, entries, picks, payouts. Paged, and
+// picks come through an embedded filter instead of a giant .in() list.
+export async function loadSeason(db, league, season, { raw = false } = {}) {
+  const [games, entries, picks, payouts] = await Promise.all([
+    fetchAll(() => db.from('games').select('*').eq('sport', league.sport).eq('season', season).order('kickoff').order('id')),
+    fetchAll(() => db.from(raw ? 'entries' : 'entries_board').select('*').eq('league_id', league.id).eq('season', season).order('created_at')),
+    fetchAll(() => db.from('picks').select('entry_id, game_id, picked, entries!inner(league_id, season)')
+      .eq('entries.league_id', league.id).eq('entries.season', season).order('id')),
+    fetchAll(() => db.from('payouts').select('*').eq('league_id', league.id).eq('season', season).order('created_at', { ascending: false })),
+  ]);
+  return { games, entries, picks: picks.map(({ entries: _e, ...p }) => p), payouts };
 }

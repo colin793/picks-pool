@@ -9,7 +9,8 @@
     "start": "next start",
     "check": "node lib/stats.test.mjs",
     "check:db": "bash scripts/db/check.sh",
-    "check:espn": "node scripts/espn-check.mjs"
+    "check:espn": "node scripts/espn-check.mjs",
+    "seed": "node scripts/seed.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

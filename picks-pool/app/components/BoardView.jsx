@@ -53,7 +53,7 @@ export default function BoardView({ league, sport, label, isCurrent, slates, sla
           <h2 className="h2">Standings</h2>
           {live > 0 && <span className="pill pill-warn">Live</span>}
         </div>
-        <Standings rows={rows} names={names} me={me} live={live} complete={complete} feeCents={league.entry_fee_cents} />
+        <Standings rows={rows} names={names} me={me} live={live} complete={complete} winners={winners} feeCents={league.entry_fee_cents} />
         <p className="mt-3 text-xs text-muted">
           {complete
             ? `Final. Tiebreaker target was ${actualTotal} total ${sport.unit}.`

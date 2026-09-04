@@ -7,7 +7,7 @@ export function slateResults(games, entries, picks) {
   const finals = games.filter((g) => g.state === 'post');
   const live = games.filter((g) => g.state === 'in');
   const complete = games.length > 0 && finals.length === games.length;
-  const lastGame = [...games].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff)).at(-1);
+  const lastGame = [...games].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff) || String(a.id).localeCompare(String(b.id))).at(-1);
   const actualTotal =
     complete && lastGame ? lastGame.home_score + lastGame.away_score : null;
 

@@ -122,6 +122,16 @@ create table public.payouts (
   created_at timestamptz not null default now()
 );
 
+-- Recap emails already sent, so a slate is recapped once even though the
+-- cron runs daily. Service role only (RLS on, no policies).
+create table public.recaps_sent (
+  league_id uuid not null references public.leagues on delete cascade,
+  season int not null,
+  slate_key text not null,
+  sent_at timestamptz not null default now(),
+  primary key (league_id, season, slate_key)
+);
+
 -- ---------- helper functions ----------
 -- security definer so policies can consult tables the caller may not read.
 
@@ -236,6 +246,7 @@ alter table public.sport_state enable row level security;
 alter table public.entries enable row level security;
 alter table public.picks enable row level security;
 alter table public.payouts enable row level security;
+alter table public.recaps_sent enable row level security;
 
 -- reference data: read-only for anyone signed in.
 create policy sports_read on public.sports for select to authenticated using (true);
@@ -322,3 +333,9 @@ select e.id, e.league_id, e.user_id, e.season, e.slate_key, e.paid, e.created_at
     else null
   end as tiebreaker
 from public.entries e;
+
+-- Accounts that already exist in auth.users (an upgrade from v1, or a reset)
+-- get their profile row here; new signups get one from the trigger above.
+insert into public.profiles (id, email, display_name)
+select id, coalesce(email, ''), split_part(coalesce(email, ''), '@', 1) from auth.users
+on conflict (id) do nothing;

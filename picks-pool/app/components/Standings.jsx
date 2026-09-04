@@ -1,7 +1,8 @@
 import { money } from '../../lib/stats';
 
 // Standings for one slate. rows from slateResults(); names: user_id -> profile.
-export default function Standings({ rows, names, me, live, complete, feeCents, showFees = true }) {
+export default function Standings({ rows, names, me, live, complete, winners = [], feeCents, showFees = true }) {
+  const won = new Set(winners.map((w) => w.id));
   return (
     <div className="overflow-x-auto">
       <table className="tbl">
@@ -25,7 +26,7 @@ export default function Standings({ rows, names, me, live, complete, feeCents, s
                 <td className="num text-base text-muted">{r.rank}</td>
                 <td className="whitespace-nowrap">
                   <span className="mr-1.5">{p?.emoji}</span>{p?.display_name ?? 'Player'}
-                  {complete && r.rank === 1 && <span className="pill pill-good ml-2">Winner</span>}
+                  {complete && won.has(r.id) && <span className="pill pill-good ml-2">Winner</span>}
                 </td>
                 <td className="num text-right text-base text-good">{r.correct}</td>
                 <td className="num text-right text-base text-muted">{r.incorrect}</td>

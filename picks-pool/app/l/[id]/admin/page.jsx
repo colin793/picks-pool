@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { leagueContext, currentSlate } from '../../../../lib/league';
+import { leagueContext, currentSlate, loadSeason } from '../../../../lib/league';
 import { appUrl } from '../../../../lib/supabase';
 import { slateResults, potFor } from '../../../../lib/stats';
 import AdminView from '../../../components/AdminView';
@@ -21,15 +21,7 @@ export default async function Admin({ params }) {
   // Current-slate fee list, plus any completed slate still owed a payout.
   let feeRows = [], owed = [], paidOut = [];
   if (now) {
-    const [{ data: allEntries }, { data: allGames }, { data: payouts }] = await Promise.all([
-      db.from('entries').select('*').eq('league_id', league.id).eq('season', now.season),
-      db.from('games').select('*').eq('sport', league.sport).eq('season', now.season),
-      db.from('payouts').select('*').eq('league_id', league.id).eq('season', now.season).order('created_at', { ascending: false }),
-    ]);
-    const entryIds = (allEntries ?? []).map((e) => e.id);
-    const { data: allPicks } = entryIds.length
-      ? await db.from('picks').select('entry_id, game_id, picked').in('entry_id', entryIds)
-      : { data: [] };
+    const { games: allGames, entries: allEntries, picks: allPicks, payouts } = await loadSeason(db, league, now.season, { raw: true });
 
     feeRows = (allEntries ?? []).filter((e) => e.slate_key === now.key);
     const labels = new Map((allGames ?? []).map((g) => [g.slate_key, g.slate_label]));

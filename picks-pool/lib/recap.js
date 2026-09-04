@@ -2,6 +2,7 @@ import { admin } from './supabase';
 import { slateResults, potFor, money } from './stats';
 import { sport as sportOf } from './scores/sports';
 import { sendEach } from './email/send';
+import { fetchAll } from './db';
 
 // Results recap: congratulate the winner, show the pot, lightly roast the
 // worst picker. Same text to everyone in the league: the shared roast is the
@@ -15,11 +16,16 @@ export async function sendRecaps() {
     try {
       const { data: state } = await db.from('sport_state').select('*').eq('sport', league.sport).maybeSingle();
       if (!state?.season) continue;
-      const { data: games } = await db.from('games').select('*').eq('sport', league.sport).eq('season', state.season);
-      const key = justEndedSlate(games ?? []);
-      if (!key) continue;
-      const n = await recapLeague(db, league, state.season, key, games.filter((g) => g.slate_key === key));
-      if (n) { sent += n; done.push(`${league.name}: ${key}`); }
+      const games = await fetchAll(() => db.from('games').select('*').eq('sport', league.sport).eq('season', state.season));
+      const { data: already } = await db.from('recaps_sent').select('slate_key').eq('league_id', league.id).eq('season', state.season);
+      const sentKeys = new Set((already ?? []).map((r) => r.slate_key));
+      for (const key of justEndedSlates(games)) {
+        if (sentKeys.has(key)) continue;
+        const n = await recapLeague(db, league, state.season, key, games.filter((g) => g.slate_key === key));
+        // Record even a zero-send (no entries, no emails) so we stop looking at it.
+        await db.from('recaps_sent').insert({ league_id: league.id, season: state.season, slate_key: key });
+        if (n) { sent += n; done.push(`${league.name}: ${key}`); }
+      }
     } catch (e) {
       console.error(`recap failed for league ${league.id}:`, e?.message);
     }
@@ -27,16 +33,15 @@ export async function sendRecaps() {
   return { sent, leagues: done };
 }
 
-// The slate whose final kickoff happened in the last 40 hours and is fully final.
-export function justEndedSlate(games) {
+// Slates whose final kickoff happened in the last 40 hours and are fully final.
+export function justEndedSlates(games) {
   const now = Date.now();
-  const keys = [...new Set(games.map((g) => g.slate_key))];
-  for (const key of keys) {
+  const keys = [...new Set(games.map((g) => g.slate_key))].sort();
+  return keys.filter((key) => {
     const sg = games.filter((g) => g.slate_key === key);
     const last = Math.max(...sg.map((g) => new Date(g.kickoff).getTime()));
-    if (last <= now && now - last < 40 * 3600_000 && sg.every((g) => g.state === 'post')) return key;
-  }
-  return null;
+    return last <= now && now - last < 40 * 3600_000 && sg.every((g) => g.state === 'post');
+  });
 }
 
 async function recapLeague(db, league, season, key, games) {
@@ -50,7 +55,8 @@ async function recapLeague(db, league, season, key, games) {
   const { data: members } = await db
     .from('memberships').select('user_id, profiles(display_name, email)')
     .eq('league_id', league.id);
-  const names = new Map((members ?? []).map((m) => [m.user_id, m.profiles?.display_name ?? 'Player']));
+  const nameMap = new Map((members ?? []).map((m) => [m.user_id, m.profiles?.display_name ?? 'Player']));
+  const names = { get: (id) => nameMap.get(id) ?? 'Former member' };
   const emails = (members ?? []).map((m) => m.profiles?.email).filter(Boolean);
   if (!emails.length) return 0;
 
