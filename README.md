@@ -113,6 +113,12 @@ To add another soccer league, copy the `epl` entry in `lib/scores/sports.js` wit
 
 Before kickoff: the line as ESPN carries it ("KC -3.5 · O/U 47.5") and the weather for outdoor games. While a game is on: who has the ball, down and distance, a red-zone pulse, and the last play. Once it has kicked off and everyone's picks are visible: how the room split ("4 of 6 took KC"), with a lone-wolf badge if you were the only one on your side. The line freezes at kickoff and is what an against-the-spread league scores on; the over/under on the slate's last game is the tiebreaker hint ("Vegas says 47.5").
 
+### What needs to happen
+
+While games are on, the board works out who takes the lead if each one goes either way, whether you can still finish on top and what you need for it ("You need LAR and LAC, plus some help"), and who is out of it for the day. It only runs over games that have kicked off, because other players' picks on the rest stay hidden until then. The math is in `lib/paths.js` with its own self-check.
+
+**Share** on the board renders the standings as an image and hands it to your phone's share sheet, so the group text gets a picture, not a link.
+
 ### Featured games (college football)
 
 A college Saturday has eighty games; a pool picks fifteen. For sports with a `featured` size in `lib/scores/sports.js` (college football today), the first time anyone in a league opens a new slate the app picks the games from the AP rankings ESPN sends with every game: ranked-vs-ranked first (best combined rank), then the best ranked teams, then power-conference games by kickoff. Games against lower-division opponents are skipped. The set is frozen for that league from then on; the commissioner can swap games in and out from Admin (a game that has kicked off stays put, and removing a game deletes any picks on it) or hit "Back to auto-pick". Only featured games can be picked, count toward standings, or move the tiebreaker lock. The NFL plays every game and none of this applies.
