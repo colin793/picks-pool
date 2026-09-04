@@ -43,8 +43,8 @@ export async function ensureSlate(db, league, sport, season, slateKey, board) {
   const chosen = featuredGames(board, { n: sport.featured, ...(sport.conferences ?? {}) });
   const fresh = chosen.map((g) => ({ league_id: league.id, season, slate_key: slateKey, game_id: g.id }));
   // The set belongs to the league, not to whoever opened the page: service role.
-  const { error } = await admin().from('slate_games').upsert(fresh, { onConflict: 'league_id,season,slate_key,game_id' });
-  if (error) { console.error('curated slate not written:', error.message); return []; }
+  const { error: writeError } = await admin().from('slate_games').upsert(fresh, { onConflict: 'league_id,season,slate_key,game_id' });
+  if (writeError) { console.error('curated slate not written:', writeError.message); return []; }
   return fresh.map((r) => ({ game_id: r.game_id, slate_key: slateKey }));
 }
 
