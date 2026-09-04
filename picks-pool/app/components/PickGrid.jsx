@@ -3,7 +3,7 @@ import { contrastText } from '../../lib/stats';
 // Everyone's picks, one row per player, one column per game. RLS decides
 // what is visible: your own picks always, others' once the game kicks off,
 // so a hidden pick is simply absent from `picks`.
-export default function PickGrid({ games, rows, picks, names, me, now = Date.now() }) {
+export default function PickGrid({ games, rows, picks, names, me, now = Date.now(), draws = false, homeFirst = false }) {
   const byEntry = new Map();
   for (const p of picks) {
     if (!byEntry.has(p.entry_id)) byEntry.set(p.entry_id, new Map());
@@ -21,9 +21,9 @@ export default function PickGrid({ games, rows, picks, names, me, now = Date.now
               const started = new Date(g.kickoff).getTime() <= now;
               return (
                 <th key={g.id} className={`text-center font-display text-xs normal-case tracking-normal ${started ? 'text-ink2' : 'text-muted'}`}>
-                  <span className="block">{g.away_abbr}</span>
-                  <span className="block text-[10px] text-muted">@</span>
-                  <span className="block">{g.home_abbr}</span>
+                  <span className="block">{homeFirst ? g.home_abbr : g.away_abbr}</span>
+                  <span className="block text-[10px] text-muted">{homeFirst ? 'v' : '@'}</span>
+                  <span className="block">{homeFirst ? g.away_abbr : g.home_abbr}</span>
                 </th>
               );
             })}
@@ -45,12 +45,15 @@ export default function PickGrid({ games, rows, picks, names, me, now = Date.now
                   if (!side) {
                     return <td key={g.id} className="text-center text-muted">{started ? <span title="No pick">–</span> : <span title="Hidden until kickoff">·</span>}</td>;
                   }
-                  const abbr = side === 'HOME' ? g.home_abbr : g.away_abbr;
-                  const color = side === 'HOME' ? g.home_color : g.away_color;
+                  const abbr = side === 'HOME' ? g.home_abbr : side === 'AWAY' ? g.away_abbr : 'DRAW';
+                  const color = side === 'HOME' ? g.home_color : side === 'AWAY' ? g.away_color : '';
                   const final = g.state === 'post';
                   const won = final && g.winner === side;
-                  const lost = final && g.winner && g.winner !== side && g.winner !== 'TIE';
-                  const ahead = g.state === 'in' && ((side === 'HOME' && g.home_score > g.away_score) || (side === 'AWAY' && g.away_score > g.home_score));
+                  const push = final && g.winner === 'TIE' && !draws;
+                  const lost = final && g.winner && !won && !push;
+                  const ahead = g.state === 'in' && (
+                    (side === 'HOME' && g.home_score > g.away_score) || (side === 'AWAY' && g.away_score > g.home_score)
+                    || (side === 'TIE' && g.home_score === g.away_score));
                   return (
                     <td key={g.id} className="p-1 text-center">
                       <span

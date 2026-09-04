@@ -5,7 +5,7 @@ import PicksForm from '../components/PicksForm';
 import BoardView from '../components/BoardView';
 import AdminView from '../components/AdminView';
 import { sport as sportOf } from '../../lib/scores/sports';
-import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, visiblePicks } from '../../lib/fixtures';
+import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, visiblePicks, EPL_GAMES, EPL_PICKS, EPL_NOW } from '../../lib/fixtures';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Design preview' };
@@ -33,8 +33,18 @@ export default function Preview({ searchParams }) {
         <Link href="/dev" className="underline">picks</Link>
         <Link href="/dev?view=board" className="underline">board</Link>
         <Link href="/dev?view=admin" className="underline">admin</Link>
+        <Link href="/dev?view=epl" className="underline">premier league</Link>
       </div>
-      {view === 'admin' ? (
+      {view === 'epl' ? (
+        <>
+          <div className="mb-5">
+            <p className="eyebrow">Premier League · draws are pickable</p>
+            <h1 className="h1 mt-1">Sep 12 to 14 picks</h1>
+          </div>
+          <PicksForm leagueId={LEAGUE.id} season={2026} slate="2026-09-12" games={EPL_GAMES} initialPicks={EPL_PICKS}
+            initialTiebreaker={3} entry={myEntry} unit="goals" draws homeFirst fixedNow={EPL_NOW} />
+        </>
+      ) : view === 'admin' ? (
         <AdminView
           user={{ id: me }} league={LEAGUE} sport={sport} names={NAMES} inviteUrl="https://picks.example.com/join/a1b2c3d4"
           members={PLAYERS.map((p) => ({ user_id: p.id, profiles: p }))}

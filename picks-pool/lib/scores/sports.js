@@ -6,6 +6,13 @@
 //   is one ESPN week of one season type. Key: 2026-2-01 (season, type, week).
 // slate_mode 'date': no weeks (NBA, NHL, MLB). A slate is one calendar day in
 //   US Eastern time. Key: 2026-11-14.
+// slate_mode 'span': no week numbers in the feed, but the schedule comes in
+//   clusters (a Premier League matchweek runs Friday to Monday). Consecutive
+//   game days form one slate. Key: the first day, 2026-09-12.
+//
+// draws: true means a draw is a pickable outcome (pick 'TIE'); otherwise a
+// tie scores for nobody. homeFirst lists the home side first ("Chelsea v
+// Arsenal") instead of the American "away @ home".
 
 export const SPORTS = {
   nfl: {
@@ -30,6 +37,7 @@ export const SPORTS = {
   nba: { key: 'nba', name: 'NBA', path: 'basketball/nba', mode: 'date', params: 'limit=200', unit: 'points' },
   nhl: { key: 'nhl', name: 'NHL', path: 'hockey/nhl', mode: 'date', params: 'limit=200', unit: 'goals' },
   mlb: { key: 'mlb', name: 'MLB', path: 'baseball/mlb', mode: 'date', params: 'limit=200', unit: 'runs' },
+  epl: { key: 'epl', name: 'Premier League', path: 'soccer/eng.1', mode: 'span', params: 'limit=100', unit: 'goals', draws: true, homeFirst: true },
 };
 
 export const SPORT_LIST = Object.values(SPORTS);
@@ -40,5 +48,6 @@ export function sport(key) {
 
 // What a slate is called in the UI: "Week 1", "Wild Card", "Sat Nov 14".
 export function slateNoun(key) {
-  return sport(key).mode === 'week' ? 'week' : 'day';
+  const m = sport(key).mode;
+  return m === 'week' ? 'week' : m === 'span' ? 'matchweek' : 'day';
 }

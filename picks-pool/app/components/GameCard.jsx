@@ -4,15 +4,17 @@ import LocalTime from './LocalTime';
 import { contrastText } from '../../lib/stats';
 
 // One matchup. `pick` is 'HOME' | 'AWAY' | undefined; `onPick(side)` when open.
-export default function GameCard({ game: g, pick, onPick, now }) {
+export default function GameCard({ game: g, pick, onPick, now, draws = false, homeFirst = false }) {
   const locked = new Date(g.kickoff).getTime() <= now;
   const final = g.state === 'post';
   const live = g.state === 'in';
   const showScore = g.state !== 'pre';
-  const pickedAbbr = pick === 'HOME' ? g.home_abbr : pick === 'AWAY' ? g.away_abbr : null;
+  const pickedAbbr = pick === 'HOME' ? g.home_abbr : pick === 'AWAY' ? g.away_abbr : pick === 'TIE' ? 'a draw' : null;
   const won = final && pick && g.winner === pick;
-  const tied = final && g.winner === 'TIE';
-  const ahead = live && pick && ((pick === 'HOME' && g.home_score > g.away_score) || (pick === 'AWAY' && g.away_score > g.home_score));
+  const tied = final && g.winner === 'TIE' && !draws; // a tie scores for nobody unless draws are pickable
+  const level = g.home_score === g.away_score;
+  const ahead = live && pick && (
+    (pick === 'HOME' && g.home_score > g.away_score) || (pick === 'AWAY' && g.away_score > g.home_score) || (pick === 'TIE' && level));
 
   const side = (which) => {
     const isHome = which === 'HOME';
@@ -57,9 +59,24 @@ export default function GameCard({ game: g, pick, onPick, now }) {
   return (
     <div className={`rounded-xl border bg-surface2/60 p-2 ${live ? 'border-accent/50' : 'border-line'}`}>
       <div className="flex items-stretch gap-1.5 sm:gap-2">
-        {side('AWAY')}
-        <span className="self-center text-xs font-semibold text-muted">@</span>
-        {side('HOME')}
+        {side(homeFirst ? 'HOME' : 'AWAY')}
+        {draws ? (
+          <button
+            type="button"
+            disabled={locked || !onPick}
+            onClick={() => onPick?.('TIE')}
+            aria-pressed={pick === 'TIE'}
+            title="Draw"
+            className={`self-stretch rounded-lg border-2 px-1.5 font-display text-xs font-bold uppercase tracking-wide transition
+              ${pick === 'TIE' ? 'border-ink2 bg-ink2 text-surface' : 'border-line bg-surface text-muted hover:border-ink2/40'}
+              ${locked ? 'cursor-default' : 'cursor-pointer'} ${final && pick === 'TIE' && g.winner !== 'TIE' ? 'opacity-60' : ''}`}
+          >
+            <span className="block leading-none">Draw</span>
+          </button>
+        ) : (
+          <span className="self-center text-xs font-semibold text-muted">{homeFirst ? 'v' : '@'}</span>
+        )}
+        {side(homeFirst ? 'AWAY' : 'HOME')}
       </div>
       <div className="mt-1.5 flex items-center justify-between gap-2 px-1 text-[11px] text-muted">
         <span className="truncate">

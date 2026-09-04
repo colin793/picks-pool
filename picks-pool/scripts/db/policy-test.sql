@@ -138,6 +138,12 @@ do $$ declare ok boolean; begin
   perform pg_temp.check('bob cannot write picks on alice''s entry', ok);
 
   begin
+    insert into picks (entry_id, game_id, picked) values ('20000000-0000-0000-0000-000000000002', 'g-open-b', 'TIE');
+    ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('bob cannot pick a draw in an NFL league', ok);
+
+  begin
     update picks set picked = 'HOME' where entry_id = '20000000-0000-0000-0000-000000000002' and game_id = 'g-open-b';
     ok := (select picked = 'HOME' from picks where entry_id = '20000000-0000-0000-0000-000000000002' and game_id = 'g-open-b');
   exception when others then ok := false; end;
@@ -146,6 +152,24 @@ do $$ declare ok boolean; begin
   delete from picks where entry_id = '20000000-0000-0000-0000-000000000002' and game_id = 'g-open-b';
   ok := not exists (select 1 from picks where entry_id = '20000000-0000-0000-0000-000000000002' and game_id = 'g-open-b');
   perform pg_temp.check('bob can un-pick an open game', ok);
+  perform pg_temp.as_admin();
+end $$;
+
+-- Draws are pickable where the sport allows them.
+insert into leagues (id, name, sport, commissioner, invite_code) values
+  ('10000000-0000-0000-0000-000000000003', 'Footy', 'epl', '00000000-0000-0000-0000-000000000003', 'epl00001');
+insert into memberships (league_id, user_id) values ('10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003');
+insert into games (id, sport, season, season_type, slate_key, slate_label, kickoff, home_abbr, home_name, away_abbr, away_name) values
+  ('g-epl', 'epl', 2026, 2, '2026-09-12', 'Sep 12 to 14', now() + interval '1 day', 'CHE', 'Chelsea', 'ARS', 'Arsenal');
+insert into entries (id, league_id, user_id, season, slate_key) values
+  ('20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000003', 2026, '2026-09-12');
+do $$ declare ok boolean; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000003'); -- bob
+  begin
+    insert into picks (entry_id, game_id, picked) values ('20000000-0000-0000-0000-000000000003', 'g-epl', 'TIE');
+    ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('bob can pick a draw in a Premier League league', ok);
   perform pg_temp.as_admin();
 end $$;
 

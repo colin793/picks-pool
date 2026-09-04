@@ -85,3 +85,12 @@ export function weekSlate(sportKey, season, seasonType, week) {
 export function dateSlate(season, seasonType, dateKey) {
   return { key: dateKey, label: dateLabel(dateKey), season, seasonType };
 }
+
+// "Sep 12 to 14" (or "Sep 30 to Oct 2") for a run of consecutive game days.
+export function spanSlate(season, seasonType, firstKey, lastKey) {
+  const short = (k) => { const [y, m, d] = k.split('-').map(Number);
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, d))); };
+  const a = short(firstKey), b = short(lastKey);
+  const label = firstKey === lastKey ? a : a.slice(0, 3) === b.slice(0, 3) ? `${a} to ${b.slice(4)}` : `${a} to ${b}`;
+  return { key: firstKey, label, season, seasonType };
+}

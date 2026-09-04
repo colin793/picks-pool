@@ -61,7 +61,7 @@ async function recapLeague(db, league, season, key, games) {
   if (!emails.length) return 0;
 
   const label = games[0]?.slate_label ?? key;
-  const unit = sportOf(league.sport).unit;
+  const { unit, draws } = sportOf(league.sport);
   const { rows, winners, actualTotal, lastGame } = slateResults(games, entries, picks ?? []);
   const { pot, share } = potFor(entries, league.entry_fee_cents, winners);
   const winnerNames = winners.map((w) => names.get(w.user_id)).join(' and ');
@@ -73,10 +73,13 @@ async function recapLeague(db, league, season, key, games) {
     .filter((p) => p.entry_id === worst.id)
     .map((p) => {
       const g = games.find((x) => x.id === p.game_id);
-      if (!g || g.state !== 'post' || g.winner === p.picked || g.winner === 'TIE') return null;
+      if (!g || g.state !== 'post' || g.winner === p.picked) return null;
+      if (g.winner === 'TIE' && !draws) return null; // scored for nobody
       const margin = Math.abs(g.home_score - g.away_score);
+      if (p.picked === 'TIE') return { margin, text: `picked a draw in ${g.away_abbr} at ${g.home_abbr} (finished ${g.away_score}-${g.home_score})` };
       const picked = p.picked === 'HOME' ? g.home_abbr : g.away_abbr;
       const over = p.picked === 'HOME' ? g.away_abbr : g.home_abbr;
+      if (g.winner === 'TIE') return { margin: 0, text: `picked ${picked} over ${over} (it was a draw)` };
       return { margin, text: `picked ${picked} over ${over} (${picked} lost by ${margin})` };
     })
     .filter(Boolean)

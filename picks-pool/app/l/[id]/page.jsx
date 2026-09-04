@@ -48,6 +48,8 @@ export default async function PicksPage({ params }) {
           initialTiebreaker={entry?.tiebreaker ?? ''}
           entry={entry}
           unit={sport.unit}
+          draws={Boolean(sport.draws)}
+          homeFirst={Boolean(sport.homeFirst)}
           serverNow={Date.now()}
         />
       )}

@@ -101,10 +101,12 @@ export async function savePicks(leagueId, season, slateKey, picks, tiebreaker) {
   const user = await currentUser();
   if (!user) redirect('/login');
   const db = sb();
-  const wanted = Object.entries(picks ?? {}).filter(([, s]) => s === 'HOME' || s === 'AWAY');
+  let wanted = Object.entries(picks ?? {}).filter(([, s]) => s === 'HOME' || s === 'AWAY' || s === 'TIE');
 
   const { data: league } = await db.from('leagues').select('sport').eq('id', leagueId).maybeSingle();
   if (!league) throw new Error('You are no longer in this league.');
+  const draws = Boolean(SPORTS[league.sport]?.draws);
+  if (!draws) wanted = wanted.filter(([, s]) => s !== 'TIE');
   const { data: games } = await db
     .from('games').select('id, kickoff')
     .eq('sport', league.sport).eq('season', season).eq('slate_key', slateKey);

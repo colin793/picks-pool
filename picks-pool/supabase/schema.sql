@@ -13,15 +13,17 @@
 create table public.sports (
   key text primary key,          -- nfl, cfb, nba, nhl, mlb (lib/scores/sports.js knows the ESPN side)
   name text not null,
-  slate_mode text not null check (slate_mode in ('week', 'date')),
+  slate_mode text not null check (slate_mode in ('week', 'date', 'span')),
+  draws boolean not null default false, -- is a draw a pickable outcome?
   sort int not null default 0
 );
-insert into public.sports (key, name, slate_mode, sort) values
-  ('nfl', 'NFL', 'week', 1),
-  ('cfb', 'College Football', 'week', 2),
-  ('nba', 'NBA', 'date', 3),
-  ('nhl', 'NHL', 'date', 4),
-  ('mlb', 'MLB', 'date', 5);
+insert into public.sports (key, name, slate_mode, draws, sort) values
+  ('nfl', 'NFL', 'week', false, 1),
+  ('cfb', 'College Football', 'week', false, 2),
+  ('nba', 'NBA', 'date', false, 3),
+  ('nhl', 'NHL', 'date', false, 4),
+  ('mlb', 'MLB', 'date', false, 5),
+  ('epl', 'Premier League', 'span', true, 6);
 
 -- ---------- tables ----------
 
@@ -108,7 +110,7 @@ create table public.picks (
   id uuid primary key default gen_random_uuid(),
   entry_id uuid not null references public.entries on delete cascade,
   game_id text not null references public.games,
-  picked text not null check (picked in ('HOME', 'AWAY')),
+  picked text not null check (picked in ('HOME', 'AWAY', 'TIE')), -- TIE only where the sport allows draws
   unique (entry_id, game_id)
 );
 
@@ -171,16 +173,19 @@ language sql security definer set search_path = public stable as $$
 $$;
 
 -- May the caller write this pick right now? Owns the entry, game not started,
--- and the game belongs to the entry's sport, season and slate.
-create function public.pick_open(e uuid, g text) returns boolean
+-- the game belongs to the entry's sport, season and slate, and a draw is
+-- only pickable where the sport allows it.
+create function public.pick_open(e uuid, g text, side text default 'HOME') returns boolean
 language sql security definer set search_path = public stable as $$
   select exists (
     select 1 from entries en
     join leagues lg on lg.id = en.league_id
+    join sports sp on sp.key = lg.sport
     join games gm on gm.id = g
     where en.id = e and en.user_id = auth.uid()
       and gm.kickoff > now()
       and gm.sport = lg.sport and gm.season = en.season and gm.slate_key = en.slate_key
+      and (side <> 'TIE' or sp.draws)
   );
 $$;
 
@@ -309,9 +314,9 @@ create policy picks_read on public.picks for select to authenticated using (
   )
 );
 create policy picks_insert on public.picks for insert to authenticated
-  with check (pick_open(entry_id, game_id));
+  with check (pick_open(entry_id, game_id, picked));
 create policy picks_update on public.picks for update to authenticated
-  using (pick_open(entry_id, game_id)) with check (pick_open(entry_id, game_id));
+  using (pick_open(entry_id, game_id)) with check (pick_open(entry_id, game_id, picked));
 create policy picks_delete on public.picks for delete to authenticated
   using (pick_open(entry_id, game_id));
 

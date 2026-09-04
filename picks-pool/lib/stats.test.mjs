@@ -120,6 +120,18 @@ assert.deepEqual(keys, ['2026-2-02', '2026-2-10', '2026-2-18', '2026-3-01']);
 const days = ['2026-11-14', '2026-11-09', '2026-12-01'].sort();
 assert.deepEqual(days, ['2026-11-09', '2026-11-14', '2026-12-01']);
 
+// ---- draws as a pickable outcome (soccer): a TIE pick on a level game wins, others lose ----
+const drawGames = [g('s1', 'TIE', '2026-09-12T14:00Z', 1, 1, '2026-09-12'), g('s2', 'HOME', '2026-09-12T16:30Z', 2, 0, '2026-09-12')];
+const drawEntries = [{ id: 'd1', user_id: 'colin', slate_key: '2026-09-12', tiebreaker: 3 }, { id: 'd2', user_id: 'kevin', slate_key: '2026-09-12', tiebreaker: 2 }];
+const drawPicks = [
+  { entry_id: 'd1', game_id: 's1', picked: 'TIE' }, { entry_id: 'd1', game_id: 's2', picked: 'HOME' },
+  { entry_id: 'd2', game_id: 's1', picked: 'HOME' }, { entry_id: 'd2', game_id: 's2', picked: 'HOME' },
+];
+const rd = slateResults(drawGames, drawEntries, drawPicks);
+assert.deepEqual(rd.winners.map((w) => w.user_id), ['colin']);
+assert.equal(rd.rows.find((r) => r.user_id === 'colin').correct, 2);
+assert.equal(rd.rows.find((r) => r.user_id === 'kevin').correct, 1);
+
 // ---- helpers ----
 assert.equal(
   venmoLink('@colin-b', 100, 'Week 1'),

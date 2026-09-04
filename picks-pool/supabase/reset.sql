@@ -23,3 +23,4 @@ drop function if exists public.shares_league_with(uuid);
 drop function if exists public.slate_lock_at(uuid, int, text);
 drop function if exists public.entry_locked(uuid);
 drop function if exists public.pick_open(uuid, text);
+drop function if exists public.pick_open(uuid, text, text);

@@ -10,7 +10,7 @@ function dayOf(iso) {
   return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' }).format(new Date(iso));
 }
 
-export default function PicksForm({ leagueId, season, slate, games, initialPicks, initialTiebreaker, entry, unit = 'points', serverNow, fixedNow }) {
+export default function PicksForm({ leagueId, season, slate, games, initialPicks, initialTiebreaker, entry, unit = 'points', draws = false, homeFirst = false, serverNow, fixedNow }) {
   const [picks, setPicks] = useState(initialPicks);
   const [tb, setTb] = useState(initialTiebreaker ?? '');
   const [msg, setMsg] = useState(null); // { kind: 'ok'|'warn'|'err', text }
@@ -71,7 +71,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
           <h2 className="eyebrow mb-2">{day}</h2>
           <div className="grid gap-2.5 md:grid-cols-2">
             {gs.map((g) => (
-              <GameCard key={g.id} game={g} pick={picks[g.id]} now={now}
+              <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst}
                 onPick={(side) => setPicks((p) => ({ ...p, [g.id]: side }))} />
             ))}
           </div>
@@ -82,7 +82,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <label className="flex items-center gap-2 text-xs font-semibold text-ink2">
             <span className="hidden sm:inline">Tiebreaker</span>
-            <span className="font-display text-sm text-ink">{lastGame ? `${lastGame.away_abbr} @ ${lastGame.home_abbr}` : 'last game'}</span>
+            <span className="font-display text-sm text-ink">{lastGame ? (homeFirst ? `${lastGame.home_abbr} v ${lastGame.away_abbr}` : `${lastGame.away_abbr} @ ${lastGame.home_abbr}`) : 'last game'}</span>
             <span className="hidden sm:inline">total {unit}</span>
             <input className="input !w-20 !py-1.5 text-center" type="number" inputMode="numeric" min="0" max="300" value={tb} disabled={tbLocked}
               onChange={(e) => setTb(e.target.value)} placeholder="44" aria-label={`Tiebreaker: total ${unit} in the last game`} />

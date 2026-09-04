@@ -113,3 +113,32 @@ export function visiblePicks(me = 'u-colin', now = NOW) {
 
 export const ALL_PICKS = Object.entries(P).flatMap(([uid, m]) => Object.entries(m).map(([gid, side]) => ({ entry_id: `e-${uid}`, game_id: gid, picked: side })));
 export const NAMES = new Map(PLAYERS.map((p) => [p.id, p]));
+
+// A Premier League matchweek for the /dev?view=epl preview: draws pickable, home side first.
+const S = (abbr, name, id, color) => ({ abbr, name, logo: `https://a.espncdn.com/i/teamlogos/soccer/500/${id}.png`, color });
+const clubs = {
+  CHE: S('CHE', 'Chelsea', 363, '#0a4595'), ARS: S('ARS', 'Arsenal', 359, '#ef0107'),
+  LIV: S('LIV', 'Liverpool', 364, '#e31b23'), MCI: S('MCI', 'Man City', 382, '#97c1e7'),
+  TOT: S('TOT', 'Tottenham', 367, '#132257'), NEW: S('NEW', 'Newcastle', 361, '#241f20'),
+  BHA: S('BHA', 'Brighton', 331, '#0057b8'), EVE: S('EVE', 'Everton', 368, '#003399'),
+};
+function match(id, home, away, kickoff, opts = {}) {
+  const h = clubs[home], a = clubs[away];
+  const state = opts.state ?? 'pre';
+  const hs = opts.hs ?? 0, as = opts.as ?? 0;
+  return {
+    id, sport: 'epl', season: 2026, season_type: 2, slate_key: '2026-09-12', slate_label: 'Sep 12 to 14', kickoff,
+    home_abbr: h.abbr, home_name: h.name, home_logo: h.logo, home_color: h.color,
+    away_abbr: a.abbr, away_name: a.name, away_logo: a.logo, away_color: a.color,
+    home_score: hs, away_score: as, state, status_detail: state === 'post' ? 'FT' : state === 'in' ? (opts.clock ?? "62'") : '',
+    winner: state === 'post' ? (hs > as ? 'HOME' : as > hs ? 'AWAY' : 'TIE') : null,
+  };
+}
+export const EPL_NOW = Date.parse('2026-09-13T15:00:00Z'); // Sunday 11 AM ET
+export const EPL_GAMES = [
+  match('m1', 'CHE', 'ARS', '2026-09-12T11:30:00Z', { state: 'post', hs: 1, as: 1 }),
+  match('m2', 'LIV', 'EVE', '2026-09-12T14:00:00Z', { state: 'post', hs: 3, as: 0 }),
+  match('m3', 'BHA', 'NEW', '2026-09-13T13:00:00Z', { state: 'in', hs: 0, as: 0, clock: "58'" }),
+  match('m4', 'MCI', 'TOT', '2026-09-13T15:30:00Z'),
+];
+export const EPL_PICKS = { m1: 'TIE', m2: 'HOME', m3: 'TIE', m4: 'AWAY' };

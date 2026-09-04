@@ -41,7 +41,7 @@ export default function BoardView({ league, sport, label, isCurrent, slates, sla
             </>
           ) : (
             <>
-              <div className="mt-1 truncate font-display text-xl font-bold sm:text-2xl">{lastGame ? `${lastGame.away_abbr} @ ${lastGame.home_abbr}` : '–'}</div>
+              <div className="mt-1 truncate font-display text-xl font-bold sm:text-2xl">{lastGame ? (sport.homeFirst ? `${lastGame.home_abbr} v ${lastGame.away_abbr}` : `${lastGame.away_abbr} @ ${lastGame.home_abbr}`) : '–'}</div>
               <div className="text-xs text-muted">total {sport.unit} in the last game</div>
             </>
           )}
@@ -64,7 +64,7 @@ export default function BoardView({ league, sport, label, isCurrent, slates, sla
       {rows.length > 0 && games.length > 0 && (
         <section className="card">
           <h2 className="h2 mb-2">Everyone&rsquo;s picks</h2>
-          <PickGrid games={games} rows={rows} picks={picks} names={names} me={me} now={now} />
+          <PickGrid games={games} rows={rows} picks={picks} names={names} me={me} now={now} draws={Boolean(sport.draws)} homeFirst={Boolean(sport.homeFirst)} />
           <p className="mt-3 text-xs text-muted">Each column reveals at that game&rsquo;s kickoff. A dot means hidden until then, a dash means no pick.</p>
         </section>
       )}

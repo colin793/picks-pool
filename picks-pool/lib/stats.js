@@ -25,7 +25,7 @@ export function slateResults(games, entries, picks) {
     for (const g of live) {
       const side = mine.get(g.id);
       if (!side) continue;
-      const ahead = g.home_score > g.away_score ? 'HOME' : g.away_score > g.home_score ? 'AWAY' : null;
+      const ahead = g.home_score > g.away_score ? 'HOME' : g.away_score > g.home_score ? 'AWAY' : 'TIE';
       if (ahead === side) leading += 1;
     }
     return {

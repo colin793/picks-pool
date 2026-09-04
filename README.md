@@ -7,7 +7,7 @@ Run multiple leagues from one app, each with its own sport, name, colors, logo, 
 ## Features
 
 - Magic-link sign-in, no passwords
-- NFL and college football by the week; NBA, NHL and MLB by the day
+- NFL and college football by the week; NBA, NHL and MLB by the day; Premier League by the matchweek, with draws as a pickable outcome
 - Opt in per slate: play the weeks you want, skip the rest
 - Each game locks at its own kickoff, so Friday joiners can still play the Sunday slate
 - Team logos and colors on every matchup; your pick fills with that team's color
@@ -89,9 +89,15 @@ Every game straight up. No pick on a game counts as a loss. Tie games score for 
 
 ## How slates work
 
-A *slate* is one bucket of games you pick together: an NFL week, a college football week, or one calendar day of NBA, NHL or MLB games. `lib/scores/sports.js` is the list of sports and how each one talks to ESPN; `public.sports` in the database mirrors the keys. Adding a sport ESPN carries is one entry in each.
+A *slate* is one bucket of games you pick together: an NFL week, a college football week, one calendar day of NBA, NHL or MLB games, or a Premier League matchweek. `lib/scores/sports.js` is the list of sports and how each one talks to ESPN; `public.sports` in the database mirrors the keys. Adding a sport ESPN carries is one entry in each.
 
-Slate keys sort as text so "past slates" is just a sort: `2026-2-01` is season 2026, regular season (ESPN type 2), week 1. Playoffs are type 3 (`2026-3-01` is Wild Card weekend). Date slates are the ET calendar date, `2026-11-14`.
+Three slate modes. **week**: ESPN numbers the weeks (NFL, college football). **date**: no weeks, one calendar day is a slate (NBA, NHL, MLB). **span**: no week numbers in the feed but the schedule comes in clusters, so consecutive game days form one slate (Premier League: Friday to Monday is a matchweek, a Tuesday-Wednesday round is its own). A game never moves slates once stored, so postponements just stay where they were.
+
+Soccer also gets a third button, Draw, and lists the home side first. Everywhere else a tie scores for nobody.
+
+Slate keys sort as text so "past slates" is just a sort: `2026-2-01` is season 2026, regular season (ESPN type 2), week 1. Playoffs are type 3 (`2026-3-01` is Wild Card weekend). Date and span slates are the ET calendar date they start on, `2026-11-14`.
+
+To add another soccer league, copy the `epl` entry in `lib/scores/sports.js` with ESPN's path (`soccer/usa.1` for MLS, `soccer/uefa.champions` for the Champions League) and add the matching row to `public.sports`.
 
 ## Local development
 
@@ -106,13 +112,13 @@ Checks that need no Supabase at all:
 
 ```
 npm run check        # scoring logic self-test (lib/stats.test.mjs)
-npm run check:espn   # hit ESPN for real and print what a sync would write (nfl | cfb | nba | nhl | mlb)
-npm run check:db     # apply schema.sql to a local Postgres and run 32 row-level security tests
+npm run check:espn   # hit ESPN for real and print what a sync would write (nfl | cfb | nba | nhl | mlb | epl)
+npm run check:db     # apply schema.sql to a local Postgres and run 34 row-level security tests
 ```
 
 `check:db` needs a local Postgres reachable at `DATABASE_URL` (default `postgres://claude:claude@localhost/pool`); `scripts/db/supabase-stub.sql` fakes just enough of Supabase's `auth` schema for the policies to run.
 
-`http://localhost:3000/dev` is a design preview on fixture data with no database: the picks page, the board and the admin page, frozen at a Sunday 4:40 PM with finals, live games and open games. Add `?view=board` or `?view=admin`. It 404s in production unless `ALLOW_PREVIEW=1` is set.
+`http://localhost:3000/dev` is a design preview on fixture data with no database: the picks page, the board and the admin page, frozen at a Sunday 4:40 PM with finals, live games and open games. Add `?view=board`, `?view=admin`, or `?view=epl` for the soccer treatment. It 404s in production unless `ALLOW_PREVIEW=1` is set.
 
 ### Staging with fake data
 
