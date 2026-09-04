@@ -84,7 +84,17 @@ create table public.games (
   away_score int not null default 0,
   state text not null default 'pre', -- pre | in | post
   status_detail text not null default '', -- ESPN shortDetail: "Q3 4:12", "Final/OT"
-  winner text                        -- HOME | AWAY | TIE, set when state = post
+  winner text,                       -- HOME | AWAY | TIE, set when state = post
+  -- Live situation, blank unless in progress.
+  possession text not null default '',   -- HOME | AWAY | ''
+  down_distance text not null default '', -- "3rd & 2"
+  red_zone boolean not null default false,
+  last_play text not null default '',
+  -- The line, from the home side (-3.5: home favored by 3.5), frozen at kickoff.
+  home_spread numeric,
+  over_under numeric,
+  weather text not null default '',      -- "Rain"
+  temperature int                        -- Fahrenheit
 );
 create index games_slate_idx on public.games (sport, season, slate_key);
 

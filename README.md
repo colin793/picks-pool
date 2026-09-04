@@ -109,6 +109,10 @@ Slate keys sort as text so "past slates" is just a sort: `2026-2-01` is season 2
 
 To add another soccer league, copy the `epl` entry in `lib/scores/sports.js` with ESPN's path (`soccer/usa.1` for MLS, `soccer/uefa.champions` for the Champions League) and add the matching row to `public.sports`.
 
+### What a card shows
+
+Before kickoff: the line as ESPN carries it ("KC -3.5 · O/U 47.5") and the weather for outdoor games. While a game is on: who has the ball, down and distance, a red-zone pulse, and the last play. Once it has kicked off and everyone's picks are visible: how the room split ("4 of 6 took KC"), with a lone-wolf badge if you were the only one on your side. The line freezes at kickoff and is what an against-the-spread league scores on; the over/under on the slate's last game is the tiebreaker hint ("Vegas says 47.5").
+
 ### Featured games (college football)
 
 A college Saturday has eighty games; a pool picks fifteen. For sports with a `featured` size in `lib/scores/sports.js` (college football today), the first time anyone in a league opens a new slate the app picks the games from the AP rankings ESPN sends with every game: ranked-vs-ranked first (best combined rank), then the best ranked teams, then power-conference games by kickoff. Games against lower-division opponents are skipped. The set is frozen for that league from then on; the commissioner can swap games in and out from Admin (a game that has kicked off stays put, and removing a game deletes any picks on it) or hit "Back to auto-pick". Only featured games can be picked, count toward standings, or move the tiebreaker lock. The NFL plays every game and none of this applies.
@@ -154,6 +158,10 @@ v2 changes the schema (weeks became slates, games gained a sport and logos). The
 2. Rotate `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET` in Supabase and Vercel while you're there.
 3. Deploy the `v2` branch. `vercel.json` now has one cron instead of two.
 4. Existing accounts keep working (schema.sql rebuilds their profile rows); people will need to set their display name and Venmo handle again in Settings.
+
+## Upgrading from v2.2 to v2.3 (live cards)
+
+Paste `picks-pool/supabase/migrations/2026-09-06-live-cards.sql` into the Supabase SQL Editor and Run. It adds the situation, weather and line columns to the games table; the next score sync fills them in. Until then the cards simply show what they showed before.
 
 ## Upgrading from v2.1 to v2.2 (push notifications)
 

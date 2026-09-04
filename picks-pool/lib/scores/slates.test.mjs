@@ -178,6 +178,49 @@ const noScore = normalizeEvent('nfl', event({
 assert.equal(noScore.home_score, 0);
 assert.equal(noScore.away_score, 0);
 
+// ---- live situation, weather, and the line ----
+const liveEv = event({
+  status: { type: { state: 'in', shortDetail: 'Q3 4:12' } },
+  weather: { displayValue: 'Rain', temperature: 41.4 },
+  competitions: [{
+    competitors: [
+      { id: '26', homeAway: 'home', score: '17', team: { abbreviation: 'SEA' } },
+      { id: '17', homeAway: 'away', score: '14', team: { abbreviation: 'NE' } },
+    ],
+    situation: { possession: '17', shortDownDistanceText: '3rd & 2', downDistanceText: '3rd & 2 at SEA 14', isRedZone: true, lastPlay: { text: 'Drake Maye pass to the right to Hunter Henry for 9 yards' } },
+    odds: [{ provider: { name: 'ESPN BET' }, details: 'SEA -3.5', overUnder: 44.5, spread: -3.5, homeTeamOdds: { favorite: true }, awayTeamOdds: { favorite: false } }],
+  }],
+});
+const liveRow = normalizeEvent('nfl', liveEv, W1);
+assert.equal(liveRow.possession, 'AWAY');           // team id 17 is the away side
+assert.equal(liveRow.down_distance, '3rd & 2');
+assert.equal(liveRow.red_zone, true);
+assert.match(liveRow.last_play, /Hunter Henry/);
+assert.equal(liveRow.home_spread, -3.5);             // home favored by 3.5
+assert.equal(liveRow.over_under, 44.5);
+assert.equal(liveRow.weather, 'Rain');
+assert.equal(liveRow.temperature, 41);
+// Situation is only meaningful in progress: a final carries none of it, but keeps the line.
+const doneRow = normalizeEvent('nfl', { ...liveEv, status: { type: { state: 'post', shortDetail: 'Final' } } }, W1);
+assert.equal(doneRow.possession, '');
+assert.equal(doneRow.down_distance, '');
+assert.equal(doneRow.red_zone, false);
+assert.equal(doneRow.last_play, '');
+assert.equal(doneRow.home_spread, -3.5);
+// The line resolves to the home side whichever way ESPN phrases it.
+const lineOf = (odds, home = 'SEA', away = 'NE') => normalizeEvent('nfl', event({ competitions: [{ competitors: [
+  { homeAway: 'home', score: '0', team: { abbreviation: home } }, { homeAway: 'away', score: '0', team: { abbreviation: away } } ], odds: [odds] }] }), W1).home_spread;
+assert.equal(lineOf({ details: 'NE -7', overUnder: 41 }), 7);                       // away favored: home gets +7
+assert.equal(lineOf({ details: 'SEA -2.5', overUnder: 41 }), -2.5);
+assert.equal(lineOf({ details: 'EVEN', overUnder: 41 }), 0);
+assert.equal(lineOf({ spread: 6.5, overUnder: 41 }), 6.5);                          // bare spread: home side, as ESPN sends it
+assert.equal(lineOf({ spread: -1, awayTeamOdds: { favorite: true }, homeTeamOdds: { favorite: false } }), 1); // team odds outrank the bare number
+assert.equal(lineOf({ details: 'garbage' }), null);
+assert.equal(normalizeEvent('nfl', event(), W1).home_spread, null);                 // no odds block at all
+assert.equal(normalizeEvent('nfl', event(), W1).over_under, null);
+assert.equal(normalizeEvent('nfl', event(), W1).weather, '');
+assert.equal(normalizeEvent('nfl', event(), W1).temperature, null);
+
 // A date-mode row carries the day as its slate key.
 const nba = normalizeEvent('nba', event({ date: '2026-11-15T01:30Z' }), dateSlate(2026, 2, '2026-11-14'));
 assert.equal(nba.sport, 'nba');
