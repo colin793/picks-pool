@@ -23,6 +23,9 @@
   --c2-rgb: 17 24 39;
   --c1: rgb(var(--c1-rgb));
   --c2: rgb(var(--c2-rgb));
+  /* Layout constants shared by the shell and anything docked to its edges. */
+  --sidebar-w: 248px;  /* LeagueShell's desktop sidebar column */
+  --tabbar-h: 58px;    /* LeagueNav's phone tab bar, as rendered (excludes the safe-area inset) */
   --font-body: 'IBM Plex Sans';
   --font-display: 'Barlow Condensed';
   color-scheme: light dark;
