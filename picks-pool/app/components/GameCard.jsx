@@ -3,6 +3,7 @@
 import LocalTime from './LocalTime';
 import { contrastText } from '../../lib/stats';
 import { useFlash } from './Flash';
+import { rankedAbbr } from '../../lib/featured';
 
 // One matchup. `pick` is 'HOME' | 'AWAY' | undefined; `onPick(side)` when open.
 export default function GameCard({ game: g, pick, onPick, now, draws = false, homeFirst = false }) {
@@ -28,6 +29,7 @@ export default function GameCard({ game: g, pick, onPick, now, draws = false, ho
     const logo = isHome ? g.home_logo : g.away_logo;
     const color = isHome ? g.home_color : g.away_color;
     const score = isHome ? g.home_score : g.away_score;
+    const rank = isHome ? g.home_rank : g.away_rank;
     const on = pick === which;
     const winner = final && g.winner === which;
     const flash = showScore && (isHome ? homeFlash : awayFlash);
@@ -56,7 +58,9 @@ export default function GameCard({ game: g, pick, onPick, now, draws = false, ho
           <span className="h-[26px] w-[26px] shrink-0 rounded-full bg-surface2 sm:h-[30px] sm:w-[30px]" />
         )}
         <span className="min-w-0 flex-1 leading-tight">
-          <span className="block font-display text-base font-bold tracking-wide sm:text-lg">{abbr}</span>
+          <span className="block font-display text-base font-bold tracking-wide sm:text-lg">
+            {rank && <span className={`mr-1 text-xs font-semibold ${on ? 'opacity-80' : 'text-muted'}`}>#{rank}</span>}{abbr}
+          </span>
           <span className={`block truncate text-[11px] ${on ? 'opacity-90' : 'text-muted'}`}>{name}</span>
         </span>
         {showScore && (

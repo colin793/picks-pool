@@ -106,6 +106,20 @@ assert.equal(row.away_score, 24);
 assert.equal(row.winner, 'HOME');
 assert.equal(row.home_color, '#002a5c'); // normalized to a lowercase 6-digit hex
 assert.equal(row.away_color, '#002244'); // a leading # from ESPN is tolerated
+assert.equal(row.home_rank, null);        // no curatedRank on the event: unranked
+assert.equal(row.home_conf, '');
+
+// College football: the AP rank rides along, 99 means unranked, conference id is kept as text.
+const ranked = normalizeEvent('cfb', event({
+  competitions: [{ competitors: [
+    { homeAway: 'home', score: '0', curatedRank: { current: 3 }, team: { abbreviation: 'UGA', conferenceId: 8 } },
+    { homeAway: 'away', score: '0', curatedRank: { current: 99 }, team: { abbreviation: 'KENT', conferenceId: '15' } },
+  ] }],
+}), weekSlate('cfb', 2026, 2, 3));
+assert.equal(ranked.home_rank, 3);
+assert.equal(ranked.away_rank, null);
+assert.equal(ranked.home_conf, '8');
+assert.equal(ranked.away_conf, '15');
 
 // Winner is read from the score, and only once the game is actually final.
 const flipped = normalizeEvent('nfl', event({

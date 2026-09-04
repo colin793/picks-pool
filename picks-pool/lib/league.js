@@ -6,6 +6,8 @@ import { sb, currentUser } from './supabase';
 import { syncSport } from './scores/sync';
 import { sport as sportOf } from './scores/sports';
 import { fetchAll } from './db';
+import { admin } from './supabase';
+import { featuredGames, applyFeatured } from './featured';
 
 export async function leagueContext(id) {
   const user = await currentUser();
@@ -25,20 +27,47 @@ export async function currentSlate(league) {
   return { season: state.season, key: state.slate_key, label: state.slate_label };
 }
 
+// The league's curated set for one slate: slate_games rows. For a sport that
+// curates (college football) the first look at a slate writes the set from
+// lib/featured.js and it is frozen from then on, except for commissioner
+// swaps. The rule is deterministic, so two people opening it at once agree.
+export async function ensureSlate(db, league, sport, season, slateKey, board) {
+  const { data: rows } = await db.from('slate_games').select('game_id, slate_key')
+    .eq('league_id', league.id).eq('season', season).eq('slate_key', slateKey);
+  if (rows?.length || !sport.featured || !board.length) return rows ?? [];
+  const chosen = featuredGames(board, { n: sport.featured, ...(sport.conferences ?? {}) });
+  const fresh = chosen.map((g) => ({ league_id: league.id, season, slate_key: slateKey, game_id: g.id }));
+  // The set belongs to the league, not to whoever opened the page: service role.
+  const { error } = await admin().from('slate_games').upsert(fresh, { onConflict: 'league_id,season,slate_key,game_id' });
+  if (error) { console.error('curated slate not written:', error.message); return []; }
+  return fresh.map((r) => ({ game_id: r.game_id, slate_key: slateKey }));
+}
+
 // Everything needed to score one slate for one league. entries come from
 // the board view so other players' tiebreakers stay hidden until lock.
+// `games` is what counts for this league; `board` is everything ESPN had.
 export async function loadSlate(db, league, season, slateKey) {
-  const [{ data: games }, { data: entries }, { data: members }] = await Promise.all([
+  const sport = sportOf(league.sport);
+  const [{ data: board }, { data: entries }, { data: members }] = await Promise.all([
     db.from('games').select('*').eq('sport', league.sport).eq('season', season).eq('slate_key', slateKey).order('kickoff').order('id'),
     db.from('entries_board').select('*').eq('league_id', league.id).eq('season', season).eq('slate_key', slateKey),
     db.from('memberships').select('user_id, profiles(id, display_name, emoji, venmo_handle)').eq('league_id', league.id),
   ]);
+  const rows = await ensureSlate(db, league, sport, season, slateKey, board ?? []);
+  const games = applyFeatured(board ?? [], rows);
   const entryIds = (entries ?? []).map((e) => e.id);
   const { data: picks } = entryIds.length
     ? await db.from('picks').select('entry_id, game_id, picked').in('entry_id', entryIds)
     : { data: [] };
   const names = new Map((members ?? []).map((m) => [m.user_id, m.profiles]));
-  return { games: games ?? [], entries: entries ?? [], picks: picks ?? [], members: members ?? [], names };
+  return { games, board: board ?? [], curated: rows.length > 0, entries: entries ?? [], picks: picks ?? [], members: members ?? [], names };
+}
+
+// Every curated-slate row for a league's season (empty for sports that play
+// the whole board). Pass to applyFeatured() before scoring season-wide data.
+export async function featuredRows(db, league, season) {
+  return fetchAll(() => db.from('slate_games').select('slate_key, game_id')
+    .eq('league_id', league.id).eq('season', season).order('game_id'));
 }
 
 // Slates this league's sport has games for this season, newest first.
@@ -54,12 +83,13 @@ export async function slateList(db, league, season) {
 // Season-wide rows for one league: games, entries, picks, payouts. Paged, and
 // picks come through an embedded filter instead of a giant .in() list.
 export async function loadSeason(db, league, season, { raw = false } = {}) {
-  const [games, entries, picks, payouts] = await Promise.all([
+  const [board, rows, entries, picks, payouts] = await Promise.all([
     fetchAll(() => db.from('games').select('*').eq('sport', league.sport).eq('season', season).order('kickoff').order('id')),
+    featuredRows(db, league, season),
     fetchAll(() => db.from(raw ? 'entries' : 'entries_board').select('*').eq('league_id', league.id).eq('season', season).order('created_at')),
     fetchAll(() => db.from('picks').select('entry_id, game_id, picked, entries!inner(league_id, season)')
       .eq('entries.league_id', league.id).eq('entries.season', season).order('id')),
     fetchAll(() => db.from('payouts').select('*').eq('league_id', league.id).eq('season', season).order('created_at', { ascending: false })),
   ]);
-  return { games, entries, picks: picks.map(({ entries: _e, ...p }) => p), payouts };
+  return { games: applyFeatured(board, rows), entries, picks: picks.map(({ entries: _e, ...p }) => p), payouts };
 }

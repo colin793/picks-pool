@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { leagueContext, currentSlate, loadSeason } from '../../../../lib/league';
+import { leagueContext, currentSlate, loadSeason, loadSlate } from '../../../../lib/league';
 import { appUrl } from '../../../../lib/supabase';
 import { slateResults, potFor } from '../../../../lib/stats';
 import AdminView from '../../../components/AdminView';
@@ -17,6 +17,13 @@ export default async function Admin({ params }) {
     .eq('league_id', league.id).order('created_at');
   const names = new Map((members ?? []).map((m) => [m.user_id, m.profiles]));
   const inviteUrl = `${appUrl()}/join/${league.invite_code}`;
+
+  // The curated slate, for sports that have one.
+  let slate = null;
+  if (now && sport.featured) {
+    const { games, board, curated } = await loadSlate(db, league, now.season, now.key);
+    slate = { games, board, curated, season: now.season, key: now.key };
+  }
 
   // Current-slate fee list, plus any completed slate still owed a payout.
   let feeRows = [], owed = [], paidOut = [];
@@ -45,6 +52,6 @@ export default async function Admin({ params }) {
 
   return (
     <AdminView user={user} league={league} sport={sport} members={members ?? []} names={names}
-      inviteUrl={inviteUrl} now={now} feeRows={feeRows} owed={owed} paidOut={paidOut} />
+      inviteUrl={inviteUrl} now={now} feeRows={feeRows} owed={owed} paidOut={paidOut} slate={slate} />
   );
 }

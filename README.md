@@ -99,6 +99,12 @@ Slate keys sort as text so "past slates" is just a sort: `2026-2-01` is season 2
 
 To add another soccer league, copy the `epl` entry in `lib/scores/sports.js` with ESPN's path (`soccer/usa.1` for MLS, `soccer/uefa.champions` for the Champions League) and add the matching row to `public.sports`.
 
+### Featured games (college football)
+
+A college Saturday has eighty games; a pool picks fifteen. For sports with a `featured` size in `lib/scores/sports.js` (college football today), the first time anyone in a league opens a new slate the app picks the games from the AP rankings ESPN sends with every game: ranked-vs-ranked first (best combined rank), then the best ranked teams, then power-conference games by kickoff. Games against lower-division opponents are skipped. The set is frozen for that league from then on; the commissioner can swap games in and out from Admin (a game that has kicked off stays put, and removing a game deletes any picks on it) or hit "Back to auto-pick". Only featured games can be picked, count toward standings, or move the tiebreaker lock. The NFL plays every game and none of this applies.
+
+The rule lives in `lib/featured.js` with its own self-check; `/dev?view=featured` shows the commissioner's view on a fixture board and `/dev?view=cfb` the picks page with ranks.
+
 ## Local development
 
 ```
@@ -111,9 +117,9 @@ npm run dev
 Checks that need no Supabase at all:
 
 ```
-npm run check        # scoring logic and slate keys (lib/stats.test.mjs, lib/scores/slates.test.mjs)
+npm run check        # scoring, slate keys, live refresh and featured-game rules (the lib/**/*.test.mjs files)
 npm run check:espn   # hit ESPN for real and print what a sync would write (nfl | cfb | nba | nhl | mlb | epl)
-npm run check:db     # apply schema.sql to a local Postgres and run 34 row-level security tests
+npm run check:db     # apply schema.sql to a local Postgres and run the row-level security tests
 ```
 
 `check:db` needs a local Postgres reachable at `DATABASE_URL` (default `postgres://claude:claude@localhost/pool`); `scripts/db/supabase-stub.sql` fakes just enough of Supabase's `auth` schema for the policies to run.
@@ -138,6 +144,10 @@ v2 changes the schema (weeks became slates, games gained a sport and logos). The
 2. Rotate `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET` in Supabase and Vercel while you're there.
 3. Deploy the `v2` branch. `vercel.json` now has one cron instead of two.
 4. Existing accounts keep working (schema.sql rebuilds their profile rows); people will need to set their display name and Venmo handle again in Settings.
+
+## Upgrading from v2 to v2.1 (featured slates)
+
+One SQL file, no data loss: Supabase SQL Editor, paste `picks-pool/supabase/migrations/2026-09-05-featured-slates.sql`, Run. It adds the rank columns and the curated-slate table and is safe to run twice. Fresh installs get the same from `schema.sql`.
 
 ## License
 

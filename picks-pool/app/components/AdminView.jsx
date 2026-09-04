@@ -1,13 +1,34 @@
 import { money, venmoLink } from '../../lib/stats';
 import {
   updateLeague, setPaid, recordPayout, undoPayout, regenerateInvite,
-  transferLeague, deleteLeague, removeMember,
+  transferLeague, deleteLeague, removeMember, setFeatured, resetFeatured,
 } from '../../lib/actions';
+import { rankedAbbr } from '../../lib/featured';
 import CopyButton from './CopyButton';
 import ConfirmForm from './ConfirmForm';
+import LocalTime from './LocalTime';
+
+// One row of the featured-games list: matchup with ranks, kickoff, and the swap button.
+function SlateRow({ g, on, started, action }) {
+  const matchup = `${rankedAbbr(g.away_abbr, g.away_rank)} @ ${rankedAbbr(g.home_abbr, g.home_rank)}`;
+  const ranked = Boolean(g.home_rank || g.away_rank);
+  return (
+    <li className="flex items-center gap-3 border-t border-line py-2 text-sm">
+      <span className={`min-w-0 flex-1 truncate ${ranked ? 'font-semibold' : ''}`}>{matchup}</span>
+      <span className="hidden shrink-0 text-xs text-muted sm:inline">
+        {g.state === 'post' ? 'Final' : g.state === 'in' ? <span className="text-accent">Live</span> : <LocalTime iso={g.kickoff} />}
+      </span>
+      {started
+        ? <span className="pill pill-muted shrink-0">{on ? 'Locked in' : 'Started'}</span>
+        : <form action={action}><button className="btn btn-ghost btn-sm">{on ? 'Remove' : 'Add'}</button></form>}
+    </li>
+  );
+}
 
 // The Admin page body. The server page computes the money state; /dev feeds fixtures.
-export default function AdminView({ user, league, sport, members, names, inviteUrl, now, feeRows, owed, paidOut }) {
+export default function AdminView({ user, league, sport, members, names, inviteUrl, now, feeRows, owed, paidOut, slate = null, clock = Date.now() }) {
+  const inSlate = new Set((slate?.games ?? []).map((g) => g.id));
+  const available = (slate?.board ?? []).filter((g) => !inSlate.has(g.id) && new Date(g.kickoff).getTime() > clock);
   return (
     <>
       <div className="mb-5">
@@ -27,6 +48,37 @@ export default function AdminView({ user, league, sport, members, names, inviteU
           </div>
           <p className="mt-2 text-xs text-muted">Text it to anyone you want in. Anyone with the link can join, so make a new one if it gets loose.</p>
         </section>
+
+        {slate?.curated && (
+          <section className="card lg:col-span-2">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <h2 className="h2">Featured games</h2>
+              <span className="pill pill-muted">{slate.games.length} of {slate.board.length}</span>
+              <form action={resetFeatured.bind(null, league.id, slate.season, slate.key)} className="ml-auto">
+                <button className="btn btn-ghost btn-sm" title="Re-run the auto-pick over the whole board">Back to auto-pick</button>
+              </form>
+            </div>
+            <p className="mb-2 text-xs text-muted">
+              Picked from the rankings: ranked-vs-ranked first, then the best ranked teams, then power-conference games.
+              Swap anything below. A game that has kicked off stays put, and removing a game deletes any picks on it.
+            </p>
+            <ul>
+              {slate.games.map((g) => (
+                <SlateRow key={g.id} g={g} on started={new Date(g.kickoff).getTime() <= clock}
+                  action={setFeatured.bind(null, league.id, slate.season, slate.key, g.id, false)} />
+              ))}
+            </ul>
+            <details className="mt-3">
+              <summary className="cursor-pointer text-sm font-semibold text-ink2">Add a game <span className="font-normal text-muted">({available.length} more on the board)</span></summary>
+              <ul className="mt-1">
+                {available.map((g) => (
+                  <SlateRow key={g.id} g={g} on={false} started={false}
+                    action={setFeatured.bind(null, league.id, slate.season, slate.key, g.id, true)} />
+                ))}
+              </ul>
+            </details>
+          </section>
+        )}
 
         {owed.map((o) => (
           <section className="card border-good/40" key={o.key}>

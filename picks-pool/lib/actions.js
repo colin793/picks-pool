@@ -3,7 +3,8 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { sb, admin, currentUser } from './supabase';
-import { SPORTS } from './scores/sports';
+import { SPORTS, sport as sportOf } from './scores/sports';
+import { featuredGames } from './featured';
 
 // ---------- leagues ----------
 
@@ -160,6 +161,64 @@ export async function withdrawEntry(leagueId, entryId) {
   const { data, error } = await sb().from('entries').delete().eq('id', entryId).select('id');
   if (error) throw new Error(error.message);
   if (!data?.length) throw new Error('Your entry is locked: one of your picked games has started.');
+  revalidatePath(`/l/${leagueId}`, 'layout');
+}
+
+// ---------- curated slate (commissioner) ----------
+
+// Picks on a game that left the slate no longer count and would confuse the
+// grid, so they go with it. Service role: the rows belong to other players.
+async function dropPicksOn(leagueId, season, slateKey, gameIds) {
+  if (!gameIds.length) return;
+  const a = admin();
+  const { data: entries } = await a.from('entries').select('id').eq('league_id', leagueId).eq('season', season).eq('slate_key', slateKey);
+  if (entries?.length) await a.from('picks').delete().in('game_id', gameIds).in('entry_id', entries.map((e) => e.id));
+}
+
+export async function setFeatured(leagueId, season, slateKey, gameId, on) {
+  const db = sb();
+  if (on) {
+    const { error } = await db.from('slate_games').insert({ league_id: leagueId, season, slate_key: slateKey, game_id: gameId }); // RLS: commissioner
+    if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
+  } else {
+    // RLS: commissioner, and only while the game has not kicked off. A filtered-out delete is 0 rows, not an error.
+    const { data, error } = await db.from('slate_games').delete()
+      .match({ league_id: leagueId, season, slate_key: slateKey, game_id: gameId }).select('game_id');
+    if (error) throw new Error(error.message);
+    if (!data?.length) throw new Error('That game has kicked off, so it stays in the slate.');
+    await dropPicksOn(leagueId, season, slateKey, [gameId]);
+  }
+  revalidatePath(`/l/${leagueId}`, 'layout');
+}
+
+// Re-run the auto-pick over the board. Games that have kicked off stay
+// whatever the rule says; everything else is replaced.
+export async function resetFeatured(leagueId, season, slateKey) {
+  const db = sb();
+  const { data: league } = await db.from('leagues').select('id, sport').eq('id', leagueId).single();
+  const sport = sportOf(league?.sport);
+  if (!sport.featured) return;
+  const [{ data: board }, { data: current }] = await Promise.all([
+    db.from('games').select('*').eq('sport', league.sport).eq('season', season).eq('slate_key', slateKey),
+    db.from('slate_games').select('game_id').eq('league_id', leagueId).eq('season', season).eq('slate_key', slateKey),
+  ]);
+  const now = Date.now();
+  const started = new Set((board ?? []).filter((g) => new Date(g.kickoff).getTime() <= now).map((g) => g.id));
+  const keep = new Set((current ?? []).map((r) => r.game_id).filter((id) => started.has(id)));
+  const open = (board ?? []).filter((g) => !started.has(g.id));
+  const want = new Set([...keep, ...featuredGames(open, { n: Math.max(0, sport.featured - keep.size), ...(sport.conferences ?? {}) }).map((g) => g.id)]);
+  const have = new Set((current ?? []).map((r) => r.game_id));
+  const remove = [...have].filter((id) => !want.has(id));
+  const add = [...want].filter((id) => !have.has(id));
+  if (remove.length) {
+    const { error } = await db.from('slate_games').delete().eq('league_id', leagueId).eq('season', season).eq('slate_key', slateKey).in('game_id', remove); // RLS
+    if (error) throw new Error(error.message);
+    await dropPicksOn(leagueId, season, slateKey, remove);
+  }
+  if (add.length) {
+    const { error } = await db.from('slate_games').insert(add.map((game_id) => ({ league_id: leagueId, season, slate_key: slateKey, game_id }))); // RLS
+    if (error) throw new Error(error.message);
+  }
   revalidatePath(`/l/${leagueId}`, 'layout');
 }
 

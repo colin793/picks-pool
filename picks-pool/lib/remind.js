@@ -3,6 +3,8 @@ import { sport as sportOf } from './scores/sports';
 import { easternDate } from './scores/espn';
 import { fmtET } from './time';
 import { sendEmail } from './email/send';
+import { applyFeatured } from './featured';
+import { featuredRows } from './league';
 
 // Morning-of reminder to anyone in a week-mode league who has no entry on the
 // current slate, when that slate has games kicking off today (ET) and at
@@ -21,10 +23,11 @@ export async function sendReminders() {
       if (s.mode !== 'week') continue;
       const { data: state } = await db.from('sport_state').select('*').eq('sport', league.sport).maybeSingle();
       if (!state?.slate_key) continue;
-      const { data: games } = await db
-        .from('games').select('kickoff, away_abbr, home_abbr')
+      const { data: board } = await db
+        .from('games').select('id, slate_key, kickoff, away_abbr, home_abbr')
         .eq('sport', league.sport).eq('season', state.season).eq('slate_key', state.slate_key).order('kickoff');
-      const upcoming = (games ?? []).filter((g) => new Date(g.kickoff).getTime() > Date.now());
+      const games = applyFeatured(board ?? [], await featuredRows(db, league, state.season));
+      const upcoming = games.filter((g) => new Date(g.kickoff).getTime() > Date.now());
       if (upcoming.length < 2) continue;
       if (easternDate(upcoming[0].kickoff) !== today) continue;
 
