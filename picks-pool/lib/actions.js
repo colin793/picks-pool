@@ -260,6 +260,18 @@ export async function deleteMessage(leagueId, id) {
   revalidatePath(`/l/${leagueId}/chat`);
 }
 
+// ---------- scores (commissioner) ----------
+
+// Force a score sync for this league's sport, throttle or no throttle.
+export async function syncNow(leagueId) {
+  const { data: league } = await sb().from('leagues').select('id, sport, commissioner').eq('id', leagueId).maybeSingle(); // RLS: members
+  const user = await currentUser();
+  if (!league || !user || league.commissioner !== user.id) return;
+  const { syncSport } = await import('./scores/sync.js');
+  await syncSport(league.sport, true);
+  revalidatePath(`/l/${leagueId}`, 'layout');
+}
+
 // ---------- profile ----------
 
 export async function saveProfile(formData) {

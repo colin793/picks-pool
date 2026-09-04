@@ -1,7 +1,7 @@
 import { money, venmoLink } from '../../lib/stats';
 import {
   updateLeague, setPaid, recordPayout, undoPayout, regenerateInvite,
-  transferLeague, deleteLeague, removeMember, setFeatured, resetFeatured,
+  transferLeague, deleteLeague, removeMember, setFeatured, resetFeatured, syncNow,
 } from '../../lib/actions';
 import { rankedAbbr } from '../../lib/featured';
 import CopyButton from './CopyButton';
@@ -26,7 +26,7 @@ function SlateRow({ g, on, started, action }) {
 }
 
 // The Admin page body. The server page computes the money state; /dev feeds fixtures.
-export default function AdminView({ user, league, sport, members, names, inviteUrl, now, feeRows, owed, paidOut, slate = null, clock = Date.now(), hasEntries = false }) {
+export default function AdminView({ user, league, sport, members, names, inviteUrl, now, feeRows, owed, paidOut, slate = null, clock = Date.now(), hasEntries = false, lastSync = null }) {
   const inSlate = new Set((slate?.games ?? []).map((g) => g.id));
   const available = (slate?.board ?? []).filter((g) => !inSlate.has(g.id) && new Date(g.kickoff).getTime() > clock);
   return (
@@ -47,6 +47,15 @@ export default function AdminView({ user, league, sport, members, names, inviteU
             </form>
           </div>
           <p className="mt-2 text-xs text-muted">Text it to anyone you want in. Anyone with the link can join, so make a new one if it gets loose.</p>
+        </section>
+
+        <section className="card">
+          <h2 className="h2 mb-1">Scores</h2>
+          <p className="mb-2 text-xs text-muted">
+            Scores come from ESPN whenever anyone opens the app, at most once a minute. If the board looks stale on a Sunday, pull them by hand.
+            {lastSync ? <> Last sync <LocalTime iso={lastSync} extra={{ hour: 'numeric', minute: '2-digit' }} />.</> : ''}
+          </p>
+          <form action={syncNow.bind(null, league.id)}><button className="btn btn-ghost btn-sm">Sync now</button></form>
         </section>
 
         {slate?.curated && (

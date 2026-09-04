@@ -26,7 +26,8 @@ export async function syncSport(sportKey, force = false) {
     // A game never moves between slates once stored: entries and picks are
     // keyed to it. Matters for span mode, where a cluster's first day can
     // fall out of the fetch window. Re-sync scores, keep the slate.
-    await db.from('games').upsert(await preserve(db, rows));
+    const { error } = await db.from('games').upsert(await preserve(db, rows));
+    if (error) console.error(`games upsert failed for ${sportKey}:`, error.message); // scores keep serving what we have
   }
 
   // Week mode: when the board rolls to a new week, keep scoring the old one
