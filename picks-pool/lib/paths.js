@@ -9,8 +9,8 @@ import { slateResults } from './stats.js';
 
 const MAX_LIVE = 10; // 2^10 outcomes is plenty; beyond that the panel says so
 
-function leadersOf(games, entries, picks) {
-  const { rows } = slateResults(games, entries, picks);
+function leadersOf(games, entries, picks, scoring) {
+  const { rows } = slateResults(games, entries, picks, { scoring });
   // Nobody "leads" on zero correct; that is just everyone tied at the start.
   const top = rows[0]?.correct > 0 ? rows.filter((r) => r.rank === 1) : [];
   const second = rows.find((r) => r.rank !== 1);
@@ -26,11 +26,13 @@ function decided(games, liveIds, choice) {
   return games.map((g) => {
     if (!liveIds.has(g.id)) return g;
     const w = choice.get(g.id);
-    return w ? { ...g, state: 'post', winner: w } : { ...g, state: 'pre', winner: null };
+    // A projected result is "this side gets it", on whatever terms the league
+    // scores by, so the line is cleared: outcome() then reads the winner.
+    return w ? { ...g, state: 'post', winner: w, home_spread: null } : { ...g, state: 'pre', winner: null };
   });
 }
 
-export function projections(games, entries, picks, { me = null, draws = false } = {}) {
+export function projections(games, entries, picks, { me = null, draws = false, scoring = 'straight' } = {}) {
   const live = games.filter((g) => g.state === 'in');
   const pending = games.filter((g) => g.state === 'pre').length;
   const liveIds = new Set(live.map((g) => g.id));
@@ -39,7 +41,7 @@ export function projections(games, entries, picks, { me = null, draws = false } 
   // 1. One game at a time: who leads if it goes each way, other live games undecided.
   const perGame = live.map((g) => ({
     game: g,
-    branches: sides.map((side) => ({ side, ...leadersOf(decided(games, liveIds, new Map([[g.id, side]])), entries, picks) })),
+    branches: sides.map((side) => ({ side, ...leadersOf(decided(games, liveIds, new Map([[g.id, side]])), entries, picks, scoring) })),
   }));
 
   // 2. Every combination of the live games: who is still alive, and what each
@@ -58,7 +60,7 @@ export function projections(games, entries, picks, { me = null, draws = false } 
     const wins = new Map(); // user_id -> { outcomes, sole, needs: Map(gameId -> side|null) }
     for (const e of entries) wins.set(e.user_id, { outcomes: 0, sole: 0, needs: new Map() });
     for (const o of outcomes) {
-      const { ids } = leadersOf(decided(games, liveIds, o), entries, picks);
+      const { ids } = leadersOf(decided(games, liveIds, o), entries, picks, scoring);
       for (const id of ids) {
         const w = wins.get(id);
         if (!w) continue;

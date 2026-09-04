@@ -1,5 +1,5 @@
 import { admin } from './supabase';
-import { slateResults, potFor, money } from './stats';
+import { slateResults, potFor, money, outcome } from './stats';
 import { sport as sportOf } from './scores/sports';
 import { sendEach } from './email/send';
 import { fetchAll } from './db';
@@ -67,7 +67,8 @@ async function recapLeague(db, league, season, key, games) {
 
   const label = games[0]?.slate_label ?? key;
   const { unit, draws } = sportOf(league.sport);
-  const { rows, winners, actualTotal, lastGame } = slateResults(games, entries, picks ?? []);
+  const scoring = league.scoring ?? 'straight';
+  const { rows, winners, actualTotal, lastGame } = slateResults(games, entries, picks ?? [], { scoring });
   const { pot, share } = potFor(entries, league.entry_fee_cents, winners);
   const winnerNames = winners.map((w) => names.get(w.user_id)).join(' and ');
 
@@ -78,13 +79,15 @@ async function recapLeague(db, league, season, key, games) {
     .filter((p) => p.entry_id === worst.id)
     .map((p) => {
       const g = games.find((x) => x.id === p.game_id);
-      if (!g || g.state !== 'post' || g.winner === p.picked) return null;
-      if (g.winner === 'TIE' && !draws) return null; // scored for nobody
+      const result = outcome(g, scoring);
+      if (!g || g.state !== 'post' || result === p.picked) return null;
+      if (result === 'TIE' && !draws) return null; // a tie or a push: scored for nobody
       const margin = Math.abs(g.home_score - g.away_score);
       if (p.picked === 'TIE') return { margin, text: `picked a draw in ${g.away_abbr} at ${g.home_abbr} (finished ${g.away_score}-${g.home_score})` };
       const picked = p.picked === 'HOME' ? g.home_abbr : g.away_abbr;
       const over = p.picked === 'HOME' ? g.away_abbr : g.home_abbr;
-      if (g.winner === 'TIE') return { margin: 0, text: `picked ${picked} over ${over} (it was a draw)` };
+      if (result === 'TIE') return { margin: 0, text: `picked ${picked} over ${over} (it was a draw)` };
+      if (scoring === 'spread' && g.winner === p.picked) return { margin, text: `picked ${picked} over ${over} (${picked} won but did not cover)` };
       return { margin, text: `picked ${picked} over ${over} (${picked} lost by ${margin})` };
     })
     .filter(Boolean)

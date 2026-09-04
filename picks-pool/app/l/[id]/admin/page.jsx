@@ -26,11 +26,12 @@ export default async function Admin({ params }) {
   }
 
   // Current-slate fee list, plus any completed slate still owed a payout.
-  let feeRows = [], owed = [], paidOut = [];
+  let feeRows = [], owed = [], paidOut = [], hasEntries = false;
   if (now) {
     const { games: allGames, entries: allEntries, picks: allPicks, payouts } = await loadSeason(db, league, now.season, { raw: true });
 
     feeRows = (allEntries ?? []).filter((e) => e.slate_key === now.key);
+    hasEntries = (allEntries ?? []).length > 0;
     const labels = new Map((allGames ?? []).map((g) => [g.slate_key, g.slate_label]));
     paidOut = (payouts ?? []).map((p) => ({ ...p, label: labels.get(p.slate_key) }));
     const paidSlates = new Set(paidOut.map((p) => p.slate_key));
@@ -39,7 +40,7 @@ export default async function Admin({ params }) {
       const games = (allGames ?? []).filter((g) => g.slate_key === key);
       const entries = (allEntries ?? []).filter((e) => e.slate_key === key);
       const ids = new Set(entries.map((e) => e.id));
-      const r = slateResults(games, entries, (allPicks ?? []).filter((p) => ids.has(p.entry_id)));
+      const r = slateResults(games, entries, (allPicks ?? []).filter((p) => ids.has(p.entry_id)), { scoring: league.scoring });
       if (r.complete && r.winners.length) {
         const { pot, share } = potFor(entries, league.entry_fee_cents, r.winners);
         owed.push({
@@ -52,6 +53,6 @@ export default async function Admin({ params }) {
 
   return (
     <AdminView user={user} league={league} sport={sport} members={members ?? []} names={names}
-      inviteUrl={inviteUrl} now={now} feeRows={feeRows} owed={owed} paidOut={paidOut} slate={slate} />
+      inviteUrl={inviteUrl} now={now} feeRows={feeRows} owed={owed} paidOut={paidOut} slate={slate} hasEntries={hasEntries} />
   );
 }

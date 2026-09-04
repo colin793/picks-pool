@@ -1,6 +1,6 @@
 // Self-check for the money-adjacent logic. Run: npm run check
 import assert from 'node:assert';
-import { slateResults, seasonStats, potFor, venmoLink, contrastText } from './stats.js';
+import { slateResults, seasonStats, potFor, venmoLink, contrastText, outcome, ahead } from './stats.js';
 
 const W1 = '2026-2-01';
 const g = (id, winner, kickoff, hs = 20, as = 10, slate = W1, state) => ({
@@ -232,6 +232,46 @@ assert.equal(rn.complete, true);
 assert.equal(rn.lastGame.id, 'n3');
 assert.equal(rn.actualTotal, 238);
 assert.deepEqual(rn.winners.map((w) => w.user_id), ['kevin']); // 3-0, no tiebreaker needed
+
+// ---- against the spread ----
+// home_spread is from the home side: -3.5 means the home team must win by 4.
+const sp = (hs, as, line, state = 'post') => ({ state, winner: state === 'post' ? (hs > as ? 'HOME' : as > hs ? 'AWAY' : 'TIE') : null, home_score: hs, away_score: as, home_spread: line });
+assert.equal(outcome(sp(27, 24, -3.5)), 'HOME');            // straight up: the winner, the line is ignored
+assert.equal(outcome(sp(27, 24, -3.5), 'spread'), 'AWAY');  // won by 3, needed 4: the dog covers
+assert.equal(outcome(sp(28, 24, -3.5), 'spread'), 'HOME');  // won by 4: covers
+assert.equal(outcome(sp(27, 24, -3), 'spread'), 'TIE');     // won by exactly the line: push
+assert.equal(outcome(sp(20, 24, 7), 'spread'), 'HOME');     // home dog loses by 4, getting 7: covers
+assert.equal(outcome(sp(20, 24, 4), 'spread'), 'TIE');
+assert.equal(outcome(sp(20, 24, 3.5), 'spread'), 'AWAY');
+assert.equal(outcome(sp(20, 24, 0), 'spread'), 'AWAY');     // pick'em: straight up
+assert.equal(outcome(sp(20, 24, null), 'spread'), 'AWAY');  // no line: straight up
+assert.equal(outcome(sp(20, 20, null), 'spread'), 'TIE');
+assert.equal(outcome(sp(20, 24, '-2.5'), 'spread'), 'AWAY'); // numeric columns arrive as strings
+assert.equal(outcome(sp(20, 24, -2.5, 'in'), 'spread'), null); // not final: no outcome yet
+assert.equal(ahead(sp(21, 20, -3.5, 'in'), 'spread'), 'AWAY');  // up 1 but not covering
+assert.equal(ahead(sp(21, 20, -3.5, 'in')), 'HOME');
+assert.equal(ahead(sp(24, 21, -3, 'in'), 'spread'), 'TIE');
+
+// A whole slate scored both ways: same picks, different answers.
+const spreadGames = [
+  { ...g('s1', 'HOME', '2026-09-13T17:00Z', 27, 24), home_spread: -3.5 },  // home wins, does not cover
+  { ...g('s2', 'AWAY', '2026-09-13T17:00Z', 10, 20), home_spread: 7 },     // away wins by 10, covers
+  { ...g('s3', 'HOME', '2026-09-13T20:25Z', 30, 27), home_spread: -3 },    // push
+];
+const spreadEntries = [{ id: 'sa', user_id: 'colin', slate_key: W1, tiebreaker: 50 }, { id: 'sb', user_id: 'kevin', slate_key: W1, tiebreaker: 60 }];
+const spreadPicks = [
+  { entry_id: 'sa', game_id: 's1', picked: 'HOME' }, { entry_id: 'sa', game_id: 's2', picked: 'AWAY' }, { entry_id: 'sa', game_id: 's3', picked: 'HOME' },
+  { entry_id: 'sb', game_id: 's1', picked: 'AWAY' }, { entry_id: 'sb', game_id: 's2', picked: 'AWAY' }, { entry_id: 'sb', game_id: 's3', picked: 'AWAY' },
+];
+const straight = slateResults(spreadGames, spreadEntries, spreadPicks);
+const ats = slateResults(spreadGames, spreadEntries, spreadPicks, { scoring: 'spread' });
+const sBy = Object.fromEntries(straight.rows.map((x) => [x.user_id, x.correct]));
+const aBy = Object.fromEntries(ats.rows.map((x) => [x.user_id, x.correct]));
+assert.deepEqual(sBy, { colin: 3, kevin: 1 });  // straight: colin had all three winners
+assert.deepEqual(aBy, { colin: 1, kevin: 2 });  // spread: s1 goes to the dog, s3 is a push for both
+assert.deepEqual(ats.winners.map((w) => w.user_id), ['kevin']);
+assert.equal(seasonStats(spreadGames, spreadEntries, spreadPicks, [], { scoring: 'spread' }).find((x) => x.user_id === 'kevin').wins, 1);
+assert.equal(seasonStats(spreadGames, spreadEntries, spreadPicks, []).find((x) => x.user_id === 'kevin').wins, 0);
 
 // ---- helpers ----
 assert.equal(

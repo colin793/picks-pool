@@ -56,7 +56,7 @@ export async function runPushJobs(sportKey = null) {
       // 2. The lead changed hands.
       const entryIds = (entries ?? []).map((e) => e.id);
       const { data: picks } = entryIds.length ? await db.from('picks').select('entry_id, game_id, picked').in('entry_id', entryIds) : { data: [] };
-      const lead = leaders(games, entries ?? [], picks ?? []);
+      const lead = leaders(games, entries ?? [], picks ?? [], league.scoring);
       const { data: last } = await db.from('push_sent').select('value')
         .match({ league_id: league.id, season: state.season, slate_key: state.slate_key, kind: 'lead', key: 'leaders' }).maybeSingle();
       if (lead.key && lead.key !== (last?.value ?? '')) {

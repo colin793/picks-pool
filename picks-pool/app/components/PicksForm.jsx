@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { savePicks, withdrawEntry } from '../../lib/actions';
 import GameCard from './GameCard';
 import { useNow } from './LocalTime';
+import { outcome } from '../../lib/stats';
 
 // Group games by their Eastern calendar day: "Thursday, Sep 10".
 function dayOf(iso) {
@@ -13,7 +14,7 @@ function dayOf(iso) {
 // allPicks: every pick the viewer may see (own always, others' once a game
 // kicks off); entryCount: how many entries the slate has. Together they say
 // how the room split on a locked game.
-export default function PicksForm({ leagueId, season, slate, games, initialPicks, initialTiebreaker, entry, unit = 'points', draws = false, homeFirst = false, serverNow, fixedNow, allPicks = [], entryCount = 0 }) {
+export default function PicksForm({ leagueId, season, slate, games, initialPicks, initialTiebreaker, entry, unit = 'points', draws = false, homeFirst = false, serverNow, fixedNow, allPicks = [], entryCount = 0, scoring = 'straight' }) {
   const [picks, setPicks] = useState(initialPicks);
   const [tb, setTb] = useState(initialTiebreaker ?? '');
   const [msg, setMsg] = useState(null); // { kind: 'ok'|'warn'|'err', text }
@@ -96,7 +97,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
           <h2 className="eyebrow mb-2">{day}</h2>
           <div className="grid gap-2.5 md:grid-cols-2">
             {gs.map((g) => (
-              <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)}
+              <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} scoring={scoring}
                 onPick={(side) => setPicks((p) => ({ ...p, [g.id]: side }))} />
             ))}
           </div>
@@ -105,7 +106,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
 
       {done.map(([day, gs]) => {
         const open = shown.has(day);
-        const right = gs.filter((g) => picks[g.id] && g.winner === picks[g.id]).length;
+        const right = gs.filter((g) => picks[g.id] && outcome(g, scoring) === picks[g.id]).length;
         const played = gs.filter((g) => picks[g.id]).length;
         return (
           <section key={day}>
@@ -118,7 +119,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
             {open && (
               <div className="mt-2 grid gap-2.5 md:grid-cols-2">
                 {gs.map((g) => (
-                  <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} />
+                  <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} scoring={scoring} />
                 ))}
               </div>
             )}

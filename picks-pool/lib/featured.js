@@ -7,8 +7,9 @@
 //   2. ranked vs unranked, best rank first
 //   3. the rest: power-conference games first, then everything, by kickoff
 // A game against a lower-division team is skipped whoever is playing it:
-// everybody picks the same side and nothing is decided. Ties within a tier
-// break by kickoff, then id, so the result is stable across runs.
+// everybody picks the same side and nothing is decided. Within a tier a
+// closer line wins (a 3-point game splits the room; a 24-point game does
+// not), then kickoff, then id, so the result is stable across runs.
 
 const kickoffOrder = (a, b) => new Date(a.kickoff) - new Date(b.kickoff) || String(a.id).localeCompare(String(b.id));
 
@@ -25,7 +26,8 @@ export function featuredGames(games, { n = 15, fbs = null, power = null } = {}) 
     else { tier = 3; score = (isPower(g.home_conf) ? 1 : 0) + (isPower(g.away_conf) ? 1 : 0); }
     scored.push({ g, tier, score });
   }
-  scored.sort((x, y) => x.tier - y.tier || y.score - x.score || kickoffOrder(x.g, y.g));
+  const closeness = (g) => (g.home_spread == null ? Infinity : Math.abs(Number(g.home_spread)));
+  scored.sort((x, y) => x.tier - y.tier || y.score - x.score || closeness(x.g) - closeness(y.g) || kickoffOrder(x.g, y.g));
   return scored.slice(0, n).map((x) => x.g).sort(kickoffOrder);
 }
 

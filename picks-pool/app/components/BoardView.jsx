@@ -7,7 +7,8 @@ import Projections from './Projections';
 
 // The "This week" page body. Server page and /dev preview both render this.
 export default function BoardView({ league, sport, label, isCurrent, slates, slateKey, games, entries, picks, names, me, now = Date.now(), shareUrl = null }) {
-  const { rows, complete, winners, actualTotal, lastGame, live, finals } = slateResults(games, entries, picks);
+  const scoring = league.scoring ?? 'straight';
+  const { rows, complete, winners, actualTotal, lastGame, live, finals } = slateResults(games, entries, picks, { scoring });
   const { pot, share } = potFor(entries, league.entry_fee_cents, winners);
   const started = games.filter((g) => new Date(g.kickoff).getTime() <= now).length;
 
@@ -15,7 +16,7 @@ export default function BoardView({ league, sport, label, isCurrent, slates, sla
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eyebrow">{sport.name} · {isCurrent ? 'current slate' : 'past slate'}</p>
+          <p className="eyebrow">{sport.name} · {isCurrent ? 'current slate' : 'past slate'}{scoring === 'spread' ? ' · against the spread' : ''}</p>
           <h1 className="h1 mt-1">{label}</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -67,13 +68,13 @@ export default function BoardView({ league, sport, label, isCurrent, slates, sla
       </section>
 
       {isCurrent && rows.length > 0 && !complete && (
-        <Projections games={games} entries={entries} picks={picks} names={names} me={me} draws={Boolean(sport.draws)} homeFirst={Boolean(sport.homeFirst)} />
+        <Projections games={games} entries={entries} picks={picks} names={names} me={me} draws={Boolean(sport.draws)} homeFirst={Boolean(sport.homeFirst)} scoring={scoring} />
       )}
 
       {rows.length > 0 && games.length > 0 && (
         <section className="card">
           <h2 className="h2 mb-2">Everyone&rsquo;s picks</h2>
-          <PickGrid games={games} rows={rows} picks={picks} names={names} me={me} now={now} draws={Boolean(sport.draws)} homeFirst={Boolean(sport.homeFirst)} />
+          <PickGrid games={games} rows={rows} picks={picks} names={names} me={me} now={now} draws={Boolean(sport.draws)} homeFirst={Boolean(sport.homeFirst)} scoring={scoring} />
           <p className="mt-3 text-xs text-muted">Each column reveals at that game&rsquo;s kickoff. A dot means hidden until then, a dash means no pick.</p>
         </section>
       )}

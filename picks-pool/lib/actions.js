@@ -55,6 +55,8 @@ export async function updateLeague(leagueId, formData) {
       venmo_handle: String(formData.get('venmo') || '').trim().slice(0, 60),
       recap_enabled: formData.get('recap') === 'on',
       reminders_enabled: formData.get('reminders') === 'on',
+      // A disabled select posts nothing; leave scoring alone then. The database refuses a change once entries exist.
+      ...(formData.get('scoring') ? { scoring: ['straight', 'spread'].includes(formData.get('scoring')) ? formData.get('scoring') : 'straight' } : {}),
     })
     .eq('id', leagueId); // RLS: commissioner only
   if (error) throw new Error(error.message);

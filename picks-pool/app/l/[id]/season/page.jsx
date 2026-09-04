@@ -16,7 +16,7 @@ export default async function Season({ params }) {
   ]);
 
   const names = new Map((members ?? []).map((m) => [m.user_id, m.profiles]));
-  const stats = seasonStats(games, entries, picks, payouts).map((s) => ({
+  const stats = seasonStats(games, entries, picks, payouts, { scoring: league.scoring }).map((s) => ({
     ...s,
     name: names.get(s.user_id)?.display_name ?? 'Player',
     emoji: names.get(s.user_id)?.emoji ?? '',

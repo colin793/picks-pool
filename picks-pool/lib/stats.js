@@ -1,9 +1,26 @@
 // Pure scoring logic. No database, no framework: games + entries + picks in,
 // ranks and winners out. lib/stats.test.mjs is the self-check.
 
+// What a pick had to get right. 'straight': the winner. 'spread': the side
+// that covered the line frozen at kickoff (home_spread, from the home side:
+// -3.5 means the home team must win by 4). A push is 'TIE' and scores for
+// nobody. A game with no line is scored straight up whatever the mode.
+export function outcome(g, scoring = 'straight') {
+  if (g.state !== 'post') return null;
+  if (scoring !== 'spread' || g.home_spread == null) return g.winner;
+  const adj = g.home_score - g.away_score + Number(g.home_spread);
+  return adj > 0 ? 'HOME' : adj < 0 ? 'AWAY' : 'TIE';
+}
+
+// Who is ahead right now, on the same terms.
+export function ahead(g, scoring = 'straight') {
+  const adj = g.home_score - g.away_score + (scoring === 'spread' && g.home_spread != null ? Number(g.home_spread) : 0);
+  return adj > 0 ? 'HOME' : adj < 0 ? 'AWAY' : 'TIE';
+}
+
 // games: one slate's games. entries: that slate's entries (any shape with id,
-// user_id, tiebreaker). picks: rows for those entries.
-export function slateResults(games, entries, picks) {
+// user_id, tiebreaker). picks: rows for those entries. scoring: see outcome().
+export function slateResults(games, entries, picks, { scoring = 'straight' } = {}) {
   const finals = games.filter((g) => g.state === 'post');
   const live = games.filter((g) => g.state === 'in');
   const complete = games.length > 0 && finals.length === games.length;
@@ -18,15 +35,14 @@ export function slateResults(games, entries, picks) {
     const mine = byEntry.get(e.id) ?? new Map();
     let correct = 0;
     for (const g of finals) {
-      if (mine.get(g.id) === g.winner) correct += 1; // ties and missing picks score for nobody
+      if (mine.get(g.id) === outcome(g, scoring)) correct += 1; // ties, pushes and missing picks score for nobody
     }
     // Games in progress where the picked side currently leads. Display only.
     let leading = 0;
     for (const g of live) {
       const side = mine.get(g.id);
       if (!side) continue;
-      const ahead = g.home_score > g.away_score ? 'HOME' : g.away_score > g.home_score ? 'AWAY' : 'TIE';
-      if (ahead === side) leading += 1;
+      if (ahead(g, scoring) === side) leading += 1;
     }
     return {
       ...e,
@@ -64,7 +80,7 @@ export function slateResults(games, entries, picks) {
 
 // Season aggregates per user across every slate with entries.
 // payouts: recorded payout rows (money actually sent).
-export function seasonStats(allGames, allEntries, allPicks, payouts) {
+export function seasonStats(allGames, allEntries, allPicks, payouts, { scoring = 'straight' } = {}) {
   const slates = [...new Set(allEntries.map((e) => e.slate_key))].sort();
   const users = new Map(); // user_id -> aggregate
 
@@ -73,7 +89,7 @@ export function seasonStats(allGames, allEntries, allPicks, payouts) {
     const entries = allEntries.filter((e) => e.slate_key === key);
     const entryIds = new Set(entries.map((e) => e.id));
     const picks = allPicks.filter((p) => entryIds.has(p.entry_id));
-    const { rows, complete, winners } = slateResults(games, entries, picks);
+    const { rows, complete, winners } = slateResults(games, entries, picks, { scoring });
     const winnerIds = new Set(winners.map((w) => w.user_id));
 
     for (const r of rows) {
