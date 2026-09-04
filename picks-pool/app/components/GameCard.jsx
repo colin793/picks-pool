@@ -4,9 +4,12 @@ import LocalTime from './LocalTime';
 import { contrastText } from '../../lib/stats';
 import { useFlash } from './Flash';
 import { rankedAbbr } from '../../lib/featured';
+import { lineText, weatherText, consensusText } from '../../lib/line';
 
 // One matchup. `pick` is 'HOME' | 'AWAY' | undefined; `onPick(side)` when open.
-export default function GameCard({ game: g, pick, onPick, now, draws = false, homeFirst = false }) {
+// `consensus` is { HOME, AWAY, TIE, total } for a locked game (everyone's
+// picks are visible once it kicks off); undefined before that.
+export default function GameCard({ game: g, pick, onPick, now, draws = false, homeFirst = false, consensus }) {
   const locked = new Date(g.kickoff).getTime() <= now;
   const final = g.state === 'post';
   const live = g.state === 'in';
@@ -33,6 +36,7 @@ export default function GameCard({ game: g, pick, onPick, now, draws = false, ho
     const on = pick === which;
     const winner = final && g.winner === which;
     const flash = showScore && (isHome ? homeFlash : awayFlash);
+    const ball = live && g.possession === which;
     const style = {
       ...(on && color ? { background: color, color: contrastText(color), borderColor: color } : {}),
       '--glow': color || 'rgb(var(--c1-rgb))',
@@ -60,6 +64,7 @@ export default function GameCard({ game: g, pick, onPick, now, draws = false, ho
         <span className="min-w-0 flex-1 leading-tight">
           <span className="block font-display text-base font-bold tracking-wide sm:text-lg">
             {rank && <span className={`mr-1 text-xs font-semibold ${on ? 'opacity-80' : 'text-muted'}`}>#{rank}</span>}{abbr}
+            {ball && <span className="ml-1 text-xs" title="Has the ball" aria-label="has the ball">🏈</span>}
           </span>
           <span className={`block truncate text-[11px] ${on ? 'opacity-90' : 'text-muted'}`}>{name}</span>
         </span>
@@ -70,8 +75,22 @@ export default function GameCard({ game: g, pick, onPick, now, draws = false, ho
     );
   };
 
+  // The small print under the matchup: the line and weather before kickoff,
+  // the situation while it is on, how the room split once it is locked.
+  const line = lineText(g);
+  const wx = weatherText(g);
+  const ballAbbr = g.possession === 'HOME' ? g.home_abbr : g.possession === 'AWAY' ? g.away_abbr : '';
+  const split = locked ? consensusText(g, consensus, pick, homeFirst) : null;
+  const extras = [];
+  if (live && (ballAbbr || g.down_distance)) extras.push({ key: 'sit', node: <span className="font-semibold text-ink2">{ballAbbr && `${ballAbbr} ball`}{ballAbbr && g.down_distance ? ' · ' : ''}{g.down_distance}</span> });
+  if (live && g.red_zone) extras.push({ key: 'rz', node: <span className="pill pill-bad">Red zone</span> });
+  if (!final && line) extras.push({ key: 'line', node: <span>{line}{g.over_under != null ? ` · O/U ${g.over_under}` : ''}</span> });
+  if (final && line && !split) extras.push({ key: 'line', node: <span>Line was {line}</span> });
+  if (!final && wx) extras.push({ key: 'wx', node: <span>{wx}</span> });
+  if (split) extras.push({ key: 'split', node: <span className={split.lone ? 'font-semibold text-warn' : ''}>{split.lone ? '🐺 ' : ''}{split.text}</span> });
+
   return (
-    <div className={`rounded-xl border bg-surface2/60 p-2 ${live ? 'border-accent/50' : 'border-line'}`}>
+    <div className={`min-w-0 rounded-xl border bg-surface2/60 p-2 ${live ? 'border-accent/50' : 'border-line'} ${live && g.red_zone ? 'redzone' : ''}`}>
       <div className="flex items-stretch gap-1.5 sm:gap-2">
         {side(homeFirst ? 'HOME' : 'AWAY')}
         {draws ? (
@@ -107,6 +126,14 @@ export default function GameCard({ game: g, pick, onPick, now, draws = false, ho
         {!final && !live && locked && <span className="pill pill-muted">Locked</span>}
         {!locked && !pick && onPick && <span className="shrink-0">Pick one</span>}
       </div>
+      {extras.length > 0 && (
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[11px] text-muted">
+          {extras.map((e) => <span key={e.key} className="min-w-0 truncate">{e.node}</span>)}
+        </div>
+      )}
+      {live && g.last_play && (
+        <p className="mt-1 truncate px-1 text-[11px] italic text-muted" title={g.last_play}>{g.last_play}</p>
+      )}
     </div>
   );
 }

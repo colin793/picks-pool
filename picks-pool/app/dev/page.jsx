@@ -112,7 +112,8 @@ export default function Preview({ searchParams }) {
             <span className="pill pill-good">Entry paid</span>
           </div>
           <PicksForm leagueId={LEAGUE.id} season={2026} slate={slate.key} games={games} initialPicks={myPicks}
-            initialTiebreaker={myEntry.tiebreaker} entry={myEntry} unit={sport.unit} fixedNow={NOW} />
+            initialTiebreaker={myEntry.tiebreaker} entry={myEntry} unit={sport.unit} fixedNow={NOW}
+            allPicks={picks} entryCount={ENTRIES.length} />
         </>
       )}
     </LeagueShell>

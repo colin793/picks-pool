@@ -28,6 +28,8 @@ export function normalizeEvent(sportKey, ev, slate) {
   const state = ev.status?.type?.state ?? 'pre'; // pre | in | post
   const hs = Number(home.score ?? 0);
   const as = Number(away.score ?? 0);
+  const sit = comp.situation ?? {};
+  const line = odds(comp.odds?.[0], home, away);
   return {
     id: String(ev.id),
     sport: sportKey,
@@ -53,7 +55,39 @@ export function normalizeEvent(sportKey, ev, slate) {
     state,
     status_detail: ev.status?.type?.shortDetail ?? '',
     winner: state === 'post' ? (hs > as ? 'HOME' : as > hs ? 'AWAY' : 'TIE') : null,
+    // Live situation (only while a game is in progress; blank otherwise).
+    possession: state === 'in' && sit.possession ? (String(sit.possession) === String(home.id) ? 'HOME' : String(sit.possession) === String(away.id) ? 'AWAY' : '') : '',
+    down_distance: state === 'in' ? String(sit.shortDownDistanceText ?? sit.downDistanceText ?? '').slice(0, 40) : '',
+    red_zone: state === 'in' && Boolean(sit.isRedZone),
+    last_play: state === 'in' ? String(sit.lastPlay?.text ?? '').slice(0, 160) : '',
+    // The line, from the home side: -3.5 means the home team is favored by 3.5.
+    home_spread: line.homeSpread,
+    over_under: line.overUnder,
+    weather: String(ev.weather?.displayValue ?? '').slice(0, 40),
+    temperature: Number.isFinite(Number(ev.weather?.temperature)) && ev.weather?.temperature != null ? Math.round(Number(ev.weather.temperature)) : null,
   };
+}
+
+// ESPN's odds block, resolved to the home side. `details` reads "KC -3.5";
+// the team odds say who is favored; `spread` alone is ambiguous, so it is
+// the last resort. A pick'em ("EVEN") is a spread of 0.
+function odds(o, home, away) {
+  if (!o) return { homeSpread: null, overUnder: null };
+  const ou = Number(o.overUnder);
+  const overUnder = Number.isFinite(ou) && ou > 0 ? ou : null;
+  const details = String(o.details ?? '').trim();
+  if (/^even$/i.test(details) || /^pk$/i.test(details)) return { homeSpread: 0, overUnder };
+  const m = details.match(/^([A-Z&]+)\s+([+-]?\d+(?:\.\d+)?)$/i);
+  const mag = m ? Math.abs(Number(m[2])) : Math.abs(Number(o.spread));
+  if (!Number.isFinite(mag)) return { homeSpread: null, overUnder };
+  let homeFavored;
+  if (o.homeTeamOdds?.favorite === true || o.awayTeamOdds?.favorite === false && o.homeTeamOdds?.favorite != null) homeFavored = true;
+  else if (o.awayTeamOdds?.favorite === true) homeFavored = false;
+  else if (m && m[1].toUpperCase() === String(home.team?.abbreviation ?? '').toUpperCase()) homeFavored = true;
+  else if (m && m[1].toUpperCase() === String(away.team?.abbreviation ?? '').toUpperCase()) homeFavored = false;
+  else if (Number.isFinite(Number(o.spread))) homeFavored = Number(o.spread) < 0; // ESPN's spread is from the home side
+  else return { homeSpread: null, overUnder };
+  return { homeSpread: homeFavored ? -mag : mag, overUnder };
 }
 
 // AP Top 25 rank from ESPN's curatedRank (99 means unranked), else null.

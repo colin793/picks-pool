@@ -46,24 +46,32 @@ function game(id, away, home, slot, opts = {}) {
     home_score: hs, away_score: as, state,
     status_detail: state === 'post' ? (opts.ot ? 'Final/OT' : 'Final') : state === 'in' ? (opts.clock ?? 'Q3 8:14') : '',
     winner: state === 'post' ? (hs > as ? 'HOME' : as > hs ? 'AWAY' : 'TIE') : null,
+    possession: state === 'in' ? (opts.ball ?? '') : '',
+    down_distance: state === 'in' ? (opts.dd ?? '') : '',
+    red_zone: state === 'in' && Boolean(opts.rz),
+    last_play: state === 'in' ? (opts.play ?? '') : '',
+    home_spread: opts.line ?? null,
+    over_under: opts.ou ?? null,
+    weather: opts.wx ?? '',
+    temperature: opts.temp ?? null,
   };
 }
 
 export const GAMES = [
-  game('f1', 'NE', 'SEA', 'thu', { hs: 24, as: 17 }),                 // Thursday night
+  game('f1', 'NE', 'SEA', 'thu', { hs: 24, as: 17, line: -3.5, ou: 44.5 }), // Thursday night
   game('f2', 'DAL', 'PHI', 'early', { hs: 20, as: 27 }),                 // early window, finals
   game('f3', 'KC', 'BUF', 'early', { hs: 31, as: 28, ot: true }),
   game('f4', 'CLE', 'PIT', 'early', { hs: 13, as: 13 }),                 // a tie: scores for nobody
   game('f5', 'MIN', 'DET', 'early', { hs: 34, as: 10 }),
   game('f6', 'CAR', 'ATL', 'early', { hs: 21, as: 24 }),
   game('f7', 'IND', 'HOU', 'early', { hs: 17, as: 20 }),
-  game('l1', 'GB', 'CHI', 'late', { hs: 14, as: 17, clock: 'Q2 1:52' }), // late window, live
-  game('l2', 'SF', 'LAR', 'late', { hs: 7, as: 7, clock: 'Q2 6:30' }),
-  game('l3', 'DEN', 'LV', 'late', { hs: 3, as: 10, clock: 'Q2 0:41' }),
-  game('l4', 'ARI', 'LAC', 'late', { hs: 21, as: 6, clock: 'Q2 3:15' }),
-  game('o1', 'BAL', 'CIN', 'snf'),                                       // Sunday night
-  game('o2', 'TB', 'NO', 'snf'),
-  game('o3', 'NYJ', 'MIA', 'mnf'),                                      // Monday night
+  game('l1', 'GB', 'CHI', 'late', { hs: 14, as: 17, clock: 'Q2 1:52', ball: 'AWAY', dd: '2nd & 7', rz: true, play: 'Jordan Love pass short left to Jayden Reed for 12 yards to the CHI 14', line: 2.5, ou: 45.5, wx: 'Partly Cloudy', temp: 58 }), // late window, live
+  game('l2', 'SF', 'LAR', 'late', { hs: 7, as: 7, clock: 'Q2 6:30', ball: 'HOME', dd: '3rd & 1', play: 'Kyren Williams up the middle for 4 yards', line: -6.5, ou: 48 }),
+  game('l3', 'DEN', 'LV', 'late', { hs: 3, as: 10, clock: 'Q2 0:41', ball: 'AWAY', dd: '1st & 10', line: 3, ou: 41.5, wx: 'Sunny', temp: 91 }),
+  game('l4', 'ARI', 'LAC', 'late', { hs: 21, as: 6, clock: 'Q2 3:15', ball: 'HOME', dd: '4th & 3', line: -4, ou: 47 }),
+  game('o1', 'BAL', 'CIN', 'snf', { line: 1, ou: 51.5, wx: 'Rain', temp: 61 }),   // Sunday night
+  game('o2', 'TB', 'NO', 'snf', { line: 0, ou: 43 }),
+  game('o3', 'NYJ', 'MIA', 'mnf', { line: -2.5, ou: 47.5, wx: 'Clear', temp: 79 }), // Monday night
 ];
 
 export const PLAYERS = [
@@ -87,8 +95,8 @@ const P = {
   'u-kevin': { f1: 'HOME', f2: 'HOME', f3: 'HOME', f4: 'AWAY', f5: 'HOME', f6: 'HOME', f7: 'AWAY', l1: 'HOME', l2: 'AWAY', l3: 'HOME', l4: 'HOME', o1: 'AWAY', o2: 'HOME' },
   'u-brian': { f1: 'AWAY', f2: 'AWAY', f3: 'AWAY', f4: 'HOME', f5: 'AWAY', f6: 'AWAY', f7: 'HOME' },
   'u-sam':   { f1: 'HOME', f2: 'AWAY', f3: 'HOME', f4: 'HOME', f5: 'HOME', f6: 'AWAY', f7: 'HOME', l1: 'AWAY', l2: 'AWAY', l3: 'AWAY', l4: 'AWAY', o1: 'HOME', o2: 'HOME', o3: 'AWAY' },
-  'u-jess':  { f1: 'HOME', f2: 'HOME', f3: 'AWAY', f4: 'AWAY', f5: 'HOME', f6: 'HOME', f7: 'HOME', l1: 'HOME', l2: 'HOME', l3: 'AWAY', l4: 'HOME', o1: 'HOME', o2: 'AWAY', o3: 'HOME' },
-  'u-marco': { f1: 'AWAY', f2: 'AWAY', f3: 'AWAY', f4: 'HOME', f5: 'AWAY', f6: 'HOME', f7: 'AWAY', l1: 'AWAY', l2: 'HOME', l3: 'HOME', l4: 'AWAY', o1: 'AWAY', o2: 'AWAY', o3: 'AWAY' },
+  'u-jess':  { f1: 'HOME', f2: 'HOME', f3: 'AWAY', f4: 'AWAY', f5: 'HOME', f6: 'HOME', f7: 'HOME', l1: 'HOME', l2: 'AWAY', l3: 'AWAY', l4: 'HOME', o1: 'HOME', o2: 'AWAY', o3: 'HOME' },
+  'u-marco': { f1: 'AWAY', f2: 'AWAY', f3: 'AWAY', f4: 'HOME', f5: 'AWAY', f6: 'HOME', f7: 'AWAY', l1: 'AWAY', l2: 'AWAY', l3: 'HOME', l4: 'AWAY', o1: 'AWAY', o2: 'AWAY', o3: 'AWAY' },
 };
 const TB = { 'u-colin': 44, 'u-kevin': 51, 'u-brian': null, 'u-sam': 38, 'u-jess': 47, 'u-marco': 55 };
 const PAID = new Set(['u-colin', 'u-kevin', 'u-sam', 'u-jess']);

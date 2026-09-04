@@ -10,7 +10,10 @@ function dayOf(iso) {
   return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' }).format(new Date(iso));
 }
 
-export default function PicksForm({ leagueId, season, slate, games, initialPicks, initialTiebreaker, entry, unit = 'points', draws = false, homeFirst = false, serverNow, fixedNow }) {
+// allPicks: every pick the viewer may see (own always, others' once a game
+// kicks off); entryCount: how many entries the slate has. Together they say
+// how the room split on a locked game.
+export default function PicksForm({ leagueId, season, slate, games, initialPicks, initialTiebreaker, entry, unit = 'points', draws = false, homeFirst = false, serverNow, fixedNow, allPicks = [], entryCount = 0 }) {
   const [picks, setPicks] = useState(initialPicks);
   const [tb, setTb] = useState(initialTiebreaker ?? '');
   const [msg, setMsg] = useState(null); // { kind: 'ok'|'warn'|'err', text }
@@ -21,6 +24,15 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
   const lastGame = [...games].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff) || String(a.id).localeCompare(String(b.id))).at(-1);
   const tbLocked = lastGame ? new Date(lastGame.kickoff).getTime() <= now : true;
   const openGames = useMemo(() => games.filter((g) => new Date(g.kickoff).getTime() > now), [games, now]);
+  const consensus = useMemo(() => {
+    const m = new Map();
+    for (const p of allPicks) {
+      if (!m.has(p.game_id)) m.set(p.game_id, { HOME: 0, AWAY: 0, TIE: 0, total: entryCount });
+      m.get(p.game_id)[p.picked] += 1;
+    }
+    return m;
+  }, [allPicks, entryCount]);
+  const vegas = lastGame?.over_under != null ? Number(lastGame.over_under) : null;
   const pickedOpen = openGames.filter((g) => picks[g.id]).length;
   const entered = Boolean(entry);
   const canWithdraw = entered && !games.some((g) => picks[g.id] && new Date(g.kickoff).getTime() <= now);
@@ -46,7 +58,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
 
   const status = msg
     ? <span className={msg.kind === 'ok' ? 'text-good' : msg.kind === 'warn' ? 'text-warn' : 'text-bad'}>{msg.text}</span>
-    : `${pickedOpen} of ${openGames.length} open picked. Games lock at kickoff.`;
+    : `${pickedOpen} of ${openGames.length} open picked. Games lock at kickoff.${vegas != null ? ` Vegas says ${vegas} on the tiebreaker.` : ''}`;
 
   function submit() {
     if (!entered && Object.keys(picks).length === 0) {
@@ -84,7 +96,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
           <h2 className="eyebrow mb-2">{day}</h2>
           <div className="grid gap-2.5 md:grid-cols-2">
             {gs.map((g) => (
-              <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst}
+              <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)}
                 onPick={(side) => setPicks((p) => ({ ...p, [g.id]: side }))} />
             ))}
           </div>
@@ -106,7 +118,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
             {open && (
               <div className="mt-2 grid gap-2.5 md:grid-cols-2">
                 {gs.map((g) => (
-                  <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} />
+                  <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} />
                 ))}
               </div>
             )}
@@ -137,7 +149,8 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
               </span>
               <span className="hidden text-xs text-ink2 lg:inline">total {unit}</span>
               <input className="input !w-[4.5rem] !py-1.5 text-center" type="number" inputMode="numeric" min="0" max="300" value={tb} disabled={tbLocked}
-                onChange={(e) => setTb(e.target.value)} placeholder="44" aria-label={`Tiebreaker: total ${unit} in the last game`} />
+                onChange={(e) => setTb(e.target.value)} placeholder={vegas != null ? String(Math.round(vegas)) : '44'} aria-label={`Tiebreaker: total ${unit} in the last game`} />
+              {vegas != null && <span className="hidden whitespace-nowrap text-xs text-muted lg:inline" title="The over/under on the last game">Vegas says {vegas}</span>}
             </label>
             <span className="hidden min-w-0 flex-1 truncate text-xs text-muted sm:block">{status}</span>
             <div className="ml-auto flex shrink-0 items-center gap-2">

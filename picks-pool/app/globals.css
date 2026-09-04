@@ -103,6 +103,12 @@ body {
   25%  { box-shadow: 0 0 0 2px color-mix(in srgb, var(--glow) 55%, transparent); }
   100% { box-shadow: 0 0 0 0 transparent; }
 }
+/* A live card while the offense is inside the 20. */
+@keyframes redzone {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(var(--bad-rgb) / 0); }
+  50% { box-shadow: 0 0 0 3px rgb(var(--bad-rgb) / .35); }
+}
+.redzone { border-color: rgb(var(--bad-rgb) / .6) !important; animation: redzone 1.8s ease-in-out infinite; }
 .flash { position: relative; z-index: 1; animation: score-pop 1.6s ease-out both; }
 .flash-soft { animation: score-pop-soft 1.2s ease-out both; }
 

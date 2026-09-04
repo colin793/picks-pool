@@ -26,13 +26,7 @@ export async function syncSport(sportKey, force = false) {
     // A game never moves between slates once stored: entries and picks are
     // keyed to it. Matters for span mode, where a cluster's first day can
     // fall out of the fetch window. Re-sync scores, keep the slate.
-    const { data: known } = await db.from('games').select('id, slate_key, slate_label').in('id', rows.map((r) => r.id));
-    const keep = new Map((known ?? []).map((g) => [g.id, g]));
-    for (const r of rows) {
-      const k = keep.get(r.id);
-      if (k) { r.slate_key = k.slate_key; r.slate_label = k.slate_label; }
-    }
-    await db.from('games').upsert(rows);
+    await db.from('games').upsert(await preserve(db, rows));
   }
 
   // Week mode: when the board rolls to a new week, keep scoring the old one
@@ -44,7 +38,7 @@ export async function syncSport(sportKey, force = false) {
     if (count) {
       const [season, type, week] = state.slate_key.split('-').map(Number);
       const old = await pullSpecificWeek(sportKey, season, type, week);
-      if (old?.length) await db.from('games').upsert(old);
+      if (old?.length) await db.from('games').upsert(await preserve(db, old));
     }
   }
   const next = {
@@ -66,6 +60,26 @@ export async function syncSport(sportKey, force = false) {
     console.error('push after sync failed:', e?.message);
   }
   return next;
+}
+
+// What a re-sync must not overwrite. A game never moves between slates once
+// stored (entries and picks are keyed to it; matters for span mode, where a
+// cluster's first day can fall out of the fetch window). And the line is the
+// line at kickoff: once a game has started it stays put, and a line ESPN
+// stops sending is not erased. That is what an against-the-spread league
+// is scored on.
+async function preserve(db, rows) {
+  const { data: known } = await db.from('games').select('id, slate_key, slate_label, state, home_spread, over_under').in('id', rows.map((r) => r.id));
+  const keep = new Map((known ?? []).map((g) => [g.id, g]));
+  for (const r of rows) {
+    const k = keep.get(r.id);
+    if (!k) continue;
+    r.slate_key = k.slate_key;
+    r.slate_label = k.slate_label;
+    if (k.state !== 'pre' || r.home_spread == null) r.home_spread = k.home_spread;
+    if (k.state !== 'pre' || r.over_under == null) r.over_under = k.over_under;
+  }
+  return rows;
 }
 
 // Every sport that has at least one league. Used by the cron.

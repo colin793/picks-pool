@@ -14,7 +14,7 @@ export default async function PicksPage({ params }) {
     return <div className="card"><p>No games synced yet for {sport.name}. ESPN usually shows up within a minute; refresh.</p></div>;
   }
 
-  const { games, board, curated, entries } = await loadSlate(db, league, slate.season, slate.key);
+  const { games, board, curated, entries, picks: visible } = await loadSlate(db, league, slate.season, slate.key);
   const entry = entries.find((e) => e.user_id === user.id) ?? null;
   const { data: myPicks } = entry
     ? await db.from('picks').select('game_id, picked').eq('entry_id', entry.id)
@@ -57,6 +57,8 @@ export default async function PicksPage({ params }) {
           draws={Boolean(sport.draws)}
           homeFirst={Boolean(sport.homeFirst)}
           serverNow={Date.now()}
+          allPicks={visible}
+          entryCount={entries.length}
         />
       )}
     </>

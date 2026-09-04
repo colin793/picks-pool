@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "check": "node lib/stats.test.mjs && node lib/scores/slates.test.mjs && node lib/live.test.mjs && node lib/featured.test.mjs && node lib/push/rules.test.mjs",
+    "check": "node lib/stats.test.mjs && node lib/scores/slates.test.mjs && node lib/live.test.mjs && node lib/featured.test.mjs && node lib/push/rules.test.mjs && node lib/line.test.mjs",
     "check:db": "bash scripts/db/check.sh",
     "check:espn": "node scripts/espn-check.mjs",
     "seed": "node scripts/seed.mjs",
