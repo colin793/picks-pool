@@ -1,4 +1,4 @@
-import { contrastText } from '../../lib/stats';
+import { FlashPill } from './Flash';
 
 // Everyone's picks, one row per player, one column per game. RLS decides
 // what is visible: your own picks always, others' once the game kicks off,
@@ -56,14 +56,16 @@ export default function PickGrid({ games, rows, picks, names, me, now = Date.now
                     || (side === 'TIE' && g.home_score === g.away_score));
                   return (
                     <td key={g.id} className="p-1 text-center">
-                      <span
+                      {/* Flashes when this game's score changes: your row in team color, others quietly. */}
+                      <FlashPill
+                        value={`${g.state}:${g.home_score}-${g.away_score}`} color={color} soft={r.user_id !== me}
                         className={`inline-block min-w-[38px] rounded px-1.5 py-1 font-display text-xs font-bold tracking-wide
                           ${won ? 'bg-goodsoft text-good ring-1 ring-good/40' : lost ? 'bg-badsoft text-bad opacity-70' : ahead ? 'bg-accent/10 text-accent ring-1 ring-accent/50' : 'bg-surface2 text-ink2'}`}
                         style={!final && color ? { boxShadow: `inset 0 -3px 0 ${color}` } : undefined}
                         title={won ? 'Correct' : lost ? 'Wrong' : ahead ? 'Leading' : ''}
                       >
                         {abbr}
-                      </span>
+                      </FlashPill>
                     </td>
                   );
                 })}

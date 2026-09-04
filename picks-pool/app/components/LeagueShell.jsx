@@ -3,6 +3,7 @@ import { SidebarNav, TabBar } from './LeagueNav';
 import { Icon } from './icons';
 import { rgbTriple } from '../../lib/color';
 import { signOut } from '../../lib/actions';
+import InstallPrompt from './InstallPrompt';
 
 // The league frame: sidebar on desktop, header + tab bar on phones. Pure
 // presentation; app/l/[id]/layout.jsx feeds it real data, /dev feeds fixtures.
@@ -52,7 +53,10 @@ export default function LeagueShell({ league, sport, slate, profile, isCommish, 
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-5 lg:px-8 lg:pb-10 lg:pt-8">{children}</main>
+      <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-5 lg:px-8 lg:pb-10 lg:pt-8">
+        <InstallPrompt />
+        {children}
+      </main>
       <TabBar base={base} isCommish={isCommish} />
     </div>
   );

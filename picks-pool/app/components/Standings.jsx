@@ -1,4 +1,5 @@
 import { money } from '../../lib/stats';
+import { FlashPill } from './Flash';
 
 // Standings for one slate. rows from slateResults(); names: user_id -> profile.
 export default function Standings({ rows, names, me, live, complete, winners = [], feeCents, showFees = true }) {
@@ -28,9 +29,15 @@ export default function Standings({ rows, names, me, live, complete, winners = [
                   <span className="mr-1.5">{p?.emoji}</span>{p?.display_name ?? 'Player'}
                   {complete && won.has(r.id) && <span className="pill pill-good ml-2">Winner</span>}
                 </td>
-                <td className="num text-right text-base text-good">{r.correct}</td>
+                <td className="num text-right text-base text-good">
+                  <FlashPill value={r.correct} color="rgb(var(--good-rgb))" soft={!mine} className="rounded px-1">{r.correct}</FlashPill>
+                </td>
                 <td className="num text-right text-base text-muted">{r.incorrect}</td>
-                {live > 0 && <td className="num text-right text-base text-accent">{r.leading || ''}</td>}
+                {live > 0 && (
+                  <td className="num text-right text-base text-accent">
+                    <FlashPill value={r.leading} soft={!mine} className="rounded px-1">{r.leading || ''}</FlashPill>
+                  </td>
+                )}
                 <td className="hidden text-right text-muted sm:table-cell">{r.tiebreaker ?? '–'}</td>
                 {showFees && (
                   <td className="text-right">

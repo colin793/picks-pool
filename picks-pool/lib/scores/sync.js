@@ -1,13 +1,13 @@
 // Pulls the current slate for one sport from ESPN into public.games and
-// records where "now" is in public.sport_state. Throttled to once per two
-// minutes per sport so page views can call it freely; the daily cron is a
-// backstop. Set SCORES_FROZEN=1 on a staging deploy to leave seeded data alone.
+// records where "now" is in public.sport_state. Throttled to once a minute
+// per sport so page views (and the live refresh while games are on) can call
+// it freely; the daily cron is a backstop. Set SCORES_FROZEN=1 on a staging deploy to leave seeded data alone.
 
 import { admin } from '../supabase.js';
 import { sport as sportOf } from './sports.js';
 import { pullWeek, pullDates, pullSpan, pullSpecificWeek } from './pull.js';
 
-const THROTTLE_MS = 120_000;
+const THROTTLE_MS = 60_000;
 
 export async function syncSport(sportKey, force = false) {
   const db = admin();

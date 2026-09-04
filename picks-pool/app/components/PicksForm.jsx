@@ -35,6 +35,15 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
     return [...m.entries()];
   }, [games]);
 
+  // What you can act on comes first. Once something is open, a day whose
+  // games have all finished drops to the bottom, folded to one line. A day
+  // with a game still in progress stays up top: that is the one to sweat.
+  const finished = ([, gs]) => gs.every((g) => g.state === 'post');
+  const active = openGames.length ? groups.filter((d) => !finished(d)) : groups;
+  const done = openGames.length ? groups.filter(finished) : [];
+  const [shown, setShown] = useState(() => new Set());
+  const toggle = (day) => setShown((prev) => { const next = new Set(prev); next.has(day) ? next.delete(day) : next.add(day); return next; });
+
   const status = msg
     ? <span className={msg.kind === 'ok' ? 'text-good' : msg.kind === 'warn' ? 'text-warn' : 'text-bad'}>{msg.text}</span>
     : `${pickedOpen} of ${openGames.length} open picked. Games lock at kickoff.`;
@@ -70,7 +79,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
 
   return (
     <div className="space-y-5">
-      {groups.map(([day, gs]) => (
+      {active.map(([day, gs]) => (
         <section key={day}>
           <h2 className="eyebrow mb-2">{day}</h2>
           <div className="grid gap-2.5 md:grid-cols-2">
@@ -81,6 +90,29 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
           </div>
         </section>
       ))}
+
+      {done.map(([day, gs]) => {
+        const open = shown.has(day);
+        const right = gs.filter((g) => picks[g.id] && g.winner === picks[g.id]).length;
+        const played = gs.filter((g) => picks[g.id]).length;
+        return (
+          <section key={day}>
+            <button type="button" onClick={() => toggle(day)} aria-expanded={open}
+              className="flex w-full items-center gap-2 rounded-lg border border-line bg-surface2/60 px-3 py-2 text-left hover:border-ink2/40">
+              <span className="eyebrow shrink-0 whitespace-nowrap">{day}</span>
+              <span className="min-w-0 truncate text-xs text-muted">{gs.length} final{played ? ` · you went ${right} for ${played}` : ''}</span>
+              <span className="ml-auto text-xs font-semibold text-ink2">{open ? 'Hide' : 'Show'}</span>
+            </button>
+            {open && (
+              <div className="mt-2 grid gap-2.5 md:grid-cols-2">
+                {gs.map((g) => (
+                  <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} />
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
 
       {/* Keeps the last row of games clear of the docked bar below. */}
       <div aria-hidden className="h-24 lg:h-20" />
@@ -113,7 +145,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
                 <button type="button" className="btn btn-ghost btn-sm hidden sm:inline-flex" onClick={withdraw} disabled={pending}>Withdraw</button>
               )}
               <button className="btn" onClick={submit} disabled={pending || (openGames.length === 0 && tbLocked)}>
-                {pending ? 'Saving…' : <>{entered ? 'Update' : 'Submit'}<span className="hidden sm:inline">&nbsp;picks</span></>}
+                {pending ? 'Saving…' : <>{entered ? 'Update' : 'Submit'}<span className="hidden sm:inline">picks</span></>}
               </button>
             </div>
           </div>

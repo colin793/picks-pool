@@ -69,7 +69,7 @@ Supabase's built-in sender only delivers to your own team and locks the email te
 
 ### 5. First run
 
-Open your URL, sign in with your email, create a league (pick the sport here; it's fixed afterwards), set the entry fee and your Venmo handle in the Admin tab, and text the invite link to your league. Scores sync automatically whenever anyone opens the app, throttled to every two minutes per sport, with a daily cron backstop.
+Open your URL, sign in with your email, create a league (pick the sport here; it's fixed afterwards), set the entry fee and your Venmo handle in the Admin tab, and text the invite link to your league. Scores sync automatically whenever anyone opens the app, throttled to once a minute per sport, with a daily cron backstop. While games are on, the Picks and This week pages refresh themselves every minute, and a score change makes the team's card glow.
 
 ### 6. Email jobs (optional)
 

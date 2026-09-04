@@ -1,6 +1,8 @@
 import { leagueContext, currentSlate, loadSlate } from '../../../lib/league';
 import { venmoLink, money } from '../../../lib/stats';
 import PicksForm from '../../components/PicksForm';
+import LiveRefresh from '../../components/LiveRefresh';
+import { refreshPlan } from '../../../lib/live';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Picks' };
@@ -24,6 +26,7 @@ export default async function PicksPage({ params }) {
 
   return (
     <>
+      <LiveRefresh {...refreshPlan(games)} />
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="eyebrow">{sport.name} · {entries.length} in this {sport.mode === 'week' ? 'week' : 'slate'}</p>
