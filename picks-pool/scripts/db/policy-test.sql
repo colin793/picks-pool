@@ -417,6 +417,26 @@ do $$ declare ok boolean; begin
   perform pg_temp.as_admin();
 end $$;
 
+-- Chat: members only; delete your own, or anything as the commissioner.
+do $$ declare n int; ok boolean; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice, in the college league
+  begin
+    insert into messages (league_id, user_id, body) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 'who has UGA'); ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('a member can post in their league', ok);
+  begin
+    insert into messages (league_id, user_id, body) values ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', 'hi'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a non-member cannot post in another league', ok);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000003'); -- bob, not in the college league
+  select count(*) into n from messages where league_id = '10000000-0000-0000-0000-000000000007';
+  perform pg_temp.check('a non-member cannot read the room', n = 0);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- commissioner
+  delete from messages where body = 'who has UGA'; get diagnostics n = row_count;
+  perform pg_temp.check('the commissioner can delete a message', n = 1);
+  perform pg_temp.as_admin();
+end $$;
+
 -- ---------- summary ----------
 do $$ declare total int; declare failed int; begin
   -- `ok is not true` so a NULL (a comparison against a missing row) counts as a failure.

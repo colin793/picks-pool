@@ -113,6 +113,10 @@ To add another soccer league, copy the `epl` entry in `lib/scores/sports.js` wit
 
 Before kickoff: the line as ESPN carries it ("KC -3.5 · O/U 47.5") and the weather for outdoor games. While a game is on: who has the ball, down and distance, a red-zone pulse, and the last play. Once it has kicked off and everyone's picks are visible: how the room split ("4 of 6 took KC"), with a lone-wolf badge if you were the only one on your side. The line freezes at kickoff and is what an against-the-spread league scores on; the over/under on the slate's last game is the tiebreaker hint ("Vegas says 47.5").
 
+### Chat
+
+A members-only room per league, on its own tab. It refreshes itself every fifteen seconds, you can delete your own messages, and the commissioner can delete anyone's. No notifications for chat, on purpose: the two push alerts stay rare.
+
 ### Against the spread
 
 A league can score straight up (the default) or against the spread: the pick has to cover the line frozen at kickoff, a push scores for nobody, and a game with no line is scored straight up. Set it in Admin under League settings; it locks once anyone has entered, so it is a season decision. Each side of a card wears its number ("-3.5", "+3.5"), the grid marks pushes, and the recap says "won but did not cover" when that is what happened.
@@ -168,6 +172,10 @@ v2 changes the schema (weeks became slates, games gained a sport and logos). The
 2. Rotate `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET` in Supabase and Vercel while you're there.
 3. Deploy the `v2` branch. `vercel.json` now has one cron instead of two.
 4. Existing accounts keep working (schema.sql rebuilds their profile rows); people will need to set their display name and Venmo handle again in Settings.
+
+## Upgrading from v2.4 to v2.5 (chat)
+
+Paste `picks-pool/supabase/migrations/2026-09-06-chat.sql` into the Supabase SQL Editor and Run.
 
 ## Upgrading from v2.3 to v2.4 (against the spread)
 

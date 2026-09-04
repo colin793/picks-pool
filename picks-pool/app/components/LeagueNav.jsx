@@ -10,6 +10,7 @@ export function navItems(base, isCommish) {
     { href: base, label: 'Picks', icon: 'picks', exact: true },
     { href: `${base}/board`, label: 'This week', icon: 'board' },
     { href: `${base}/season`, label: 'Season', icon: 'season' },
+    { href: `${base}/chat`, label: 'Chat', icon: 'chat' },
   ];
   if (isCommish) items.push({ href: `${base}/admin`, label: 'Admin', icon: 'admin' });
   return items;
