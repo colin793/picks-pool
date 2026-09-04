@@ -6,7 +6,10 @@ import { slateResults, potFor, money } from './stats';
 export function shareCard({ league, sport, label, games, entries, picks, names }) {
   const { rows, complete, winners, live, finals } = slateResults(games, entries, picks);
   const { pot } = potFor(entries, league.entry_fee_cents, winners);
-  const top = rows.slice(0, 10);
+  const top = rows.slice(0, 8);
+  // Rows share ~330px under the header; size them to the count so eight fit.
+  const rowH = Math.max(34, Math.min(54, Math.floor(330 / Math.max(top.length, 1))));
+  const rowFont = rowH >= 50 ? 28 : rowH >= 42 ? 24 : 20;
   const status = complete ? 'Final' : live ? `Live · ${finals} of ${games.length} final` : finals ? `${finals} of ${games.length} final` : 'Picks are in';
   const c1 = league.color1 || '#1d4ed8';
   const c2 = league.color2 || '#111827';
@@ -31,19 +34,28 @@ export function shareCard({ league, sport, label, games, entries, picks, names }
             <div style={{ fontSize: 22, opacity: 0.9 }}>{`${winners.map((w) => name(w)).join(' & ')} ${winners.length > 1 ? 'split it' : 'takes it'}`}</div>
           )}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', marginTop: 24, borderTop: '2px solid rgba(255,255,255,.15)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', marginTop: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', fontSize: 16, letterSpacing: 2, opacity: 0.55, textTransform: 'uppercase', paddingBottom: 6, borderBottom: '2px solid rgba(255,255,255,.15)' }}>
+            <div style={{ width: 60 }}>#</div>
+            <div style={{ flex: 1 }}>Player</div>
+            <div style={{ width: 120, textAlign: 'right' }}>Right</div>
+            <div style={{ width: 120, textAlign: 'right' }}>Wrong</div>
+            {live > 0 && <div style={{ width: 140, textAlign: 'right' }}>Leading</div>}
+          </div>
           {top.map((r, i) => (
-            <div key={r.id} style={{ display: 'flex', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,.1)', fontSize: 30 }}>
+            <div key={r.id} style={{ display: 'flex', alignItems: 'center', height: rowH, borderBottom: '1px solid rgba(255,255,255,.1)', fontSize: rowFont }}>
               <div style={{ width: 60, opacity: 0.6 }}>{String(r.rank)}</div>
               <div style={{ flex: 1, fontWeight: i === 0 ? 700 : 500 }}>{name(r)}</div>
               <div style={{ width: 120, textAlign: 'right', color: '#7ee2a2', fontWeight: 700 }}>{String(r.correct)}</div>
               <div style={{ width: 120, textAlign: 'right', opacity: 0.55 }}>{String(r.incorrect)}</div>
-              {live > 0 && <div style={{ width: 140, textAlign: 'right', color: '#9cc4ff' }}>{r.leading ? `▲ ${r.leading}` : ''}</div>}
+              {live > 0 && <div style={{ width: 140, textAlign: 'right', color: '#9cc4ff' }}>{r.leading ? `+${r.leading}` : ''}</div>}
             </div>
           ))}
-          {rows.length > top.length && <div style={{ fontSize: 22, opacity: 0.6, paddingTop: 10 }}>{`and ${rows.length - top.length} more`}</div>}
         </div>
-        <div style={{ display: 'flex', marginTop: 'auto', fontSize: 20, opacity: 0.55 }}>Picks Pool</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'auto', fontSize: 18, opacity: 0.55 }}>
+          <div>{rows.length > top.length ? `and ${rows.length - top.length} more` : ''}</div>
+          <div>Picks Pool</div>
+        </div>
       </div>
     ),
     { width: 1200, height: 630 }
