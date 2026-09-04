@@ -5,6 +5,7 @@ import PicksForm from '../components/PicksForm';
 import BoardView from '../components/BoardView';
 import AdminView from '../components/AdminView';
 import DevBump from '../components/DevBump';
+import PushToggle from '../components/PushToggle';
 import { sport as sportOf } from '../../lib/scores/sports';
 import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, visiblePicks, EPL_GAMES, EPL_PICKS, EPL_NOW, CFB_BOARD, CFB_NOW } from '../../lib/fixtures';
 import { featuredGames } from '../../lib/featured';
@@ -41,7 +42,7 @@ export default function Preview({ searchParams }) {
   async function noop() { 'use server'; }
 
   return (
-    <LeagueShell league={LEAGUE} sport={sport} slate={slate} profile={NAMES.get(me)} isCommish base="/dev" signOutAction={noop}>
+    <LeagueShell league={LEAGUE} sport={sport} slate={slate} profile={NAMES.get(me)} isCommish base="/dev" signOutAction={noop} demo>
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
         <span className="pill pill-warn">Preview · fixture data · clock frozen at Sun 4:40 PM ET</span>
         <Link href="/dev" className="underline">picks</Link>
@@ -50,9 +51,16 @@ export default function Preview({ searchParams }) {
         <Link href="/dev?view=epl" className="underline">premier league</Link>
         <Link href="/dev?view=featured" className="underline">featured</Link>
         <Link href="/dev?view=cfb" className="underline">college picks</Link>
+        <Link href="/dev?view=notify" className="underline">notifications</Link>
         {['picks', 'board'].includes(view) && <DevBump />}
       </div>
-      {view === 'cfb' ? (
+      {view === 'notify' ? (
+        <section className="card max-w-lg">
+          <h2 className="h2 mb-1">Notifications</h2>
+          <p className="mb-3 text-xs text-muted">The Settings switch, wired to this browser only (no server in the preview).</p>
+          <PushToggle publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BDemoKeyOnlyForThePreview_________________________________________________________'} demo />
+        </section>
+      ) : view === 'cfb' ? (
         <>
           <div className="mb-5">
             <p className="eyebrow">College Football · 6 in this week · 15 of {CFB_BOARD.length} games featured</p>

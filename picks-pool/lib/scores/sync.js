@@ -56,6 +56,15 @@ export async function syncSport(sportKey, force = false) {
     last_sync: new Date().toISOString(),
   };
   await db.from('sport_state').upsert(next);
+
+  // Fresh scores may mean a new leader, and a kickoff may be close: push.
+  // Never lets a push problem break the scores.
+  try {
+    const { runPushJobs } = await import('../push/jobs.js');
+    await runPushJobs(sportKey);
+  } catch (e) {
+    console.error('push after sync failed:', e?.message);
+  }
   return next;
 }
 

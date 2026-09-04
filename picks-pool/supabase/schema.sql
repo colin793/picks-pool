@@ -151,6 +151,33 @@ create table public.recaps_sent (
   primary key (league_id, season, slate_key)
 );
 
+-- Web Push subscriptions, one row per browser/device. Yours only; the server
+-- (service role) reads them all to send.
+create table public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  user_agent text not null default '',
+  created_at timestamptz not null default now()
+);
+create index push_subscriptions_user_idx on public.push_subscriptions (user_id);
+
+-- What has already been pushed, so the jobs can run as often as they like.
+-- kind 'lock': key is the user id warned for this slate. kind 'lead': key is
+-- 'leaders', value the leader set last announced. Service role only.
+create table public.push_sent (
+  league_id uuid not null references public.leagues on delete cascade,
+  season int not null,
+  slate_key text not null,
+  kind text not null,
+  key text not null,
+  value text not null default '',
+  sent_at timestamptz not null default now(),
+  primary key (league_id, season, slate_key, kind, key)
+);
+
 -- ---------- helper functions ----------
 -- security definer so policies can consult tables the caller may not read.
 
@@ -280,6 +307,8 @@ alter table public.entries enable row level security;
 alter table public.picks enable row level security;
 alter table public.payouts enable row level security;
 alter table public.recaps_sent enable row level security;
+alter table public.push_subscriptions enable row level security;
+alter table public.push_sent enable row level security;
 
 -- reference data: read-only for anyone signed in.
 create policy sports_read on public.sports for select to authenticated using (true);
@@ -365,6 +394,16 @@ create policy payouts_insert on public.payouts for insert to authenticated
   with check (is_commissioner(league_id));
 create policy payouts_delete on public.payouts for delete to authenticated
   using (is_commissioner(league_id));
+
+-- push subscriptions: your own devices, nothing else.
+create policy push_subscriptions_read on public.push_subscriptions for select to authenticated
+  using (user_id = auth.uid());
+create policy push_subscriptions_insert on public.push_subscriptions for insert to authenticated
+  with check (user_id = auth.uid());
+create policy push_subscriptions_update on public.push_subscriptions for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy push_subscriptions_delete on public.push_subscriptions for delete to authenticated
+  using (user_id = auth.uid());
 
 -- Leaderboard view: other players' tiebreaker stays null until the slate's
 -- final game has kicked off.

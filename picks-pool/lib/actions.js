@@ -222,6 +222,25 @@ export async function resetFeatured(leagueId, season, slateKey) {
   revalidatePath(`/l/${leagueId}`, 'layout');
 }
 
+// ---------- push notifications ----------
+
+export async function savePushSubscription(sub, userAgent = '') {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  const endpoint = String(sub?.endpoint || '');
+  const p256dh = String(sub?.keys?.p256dh || '');
+  const auth = String(sub?.keys?.auth || '');
+  if (!endpoint || !p256dh || !auth) throw new Error('That browser did not hand back a usable subscription.');
+  const { error } = await sb().from('push_subscriptions')
+    .upsert({ user_id: user.id, endpoint, p256dh, auth, user_agent: String(userAgent).slice(0, 200) }, { onConflict: 'endpoint' }); // RLS: own rows
+  if (error) throw new Error(error.message);
+}
+
+export async function removePushSubscription(endpoint) {
+  if (!endpoint) return;
+  await sb().from('push_subscriptions').delete().eq('endpoint', String(endpoint)); // RLS: own rows
+}
+
 // ---------- profile ----------
 
 export async function saveProfile(formData) {
