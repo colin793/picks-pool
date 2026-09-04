@@ -26,7 +26,7 @@ export default function LeagueShell({ league, sport, slate, profile, isCommish, 
   return (
     <div
       style={{ '--c1-rgb': rgbTriple(league.color1), '--c2-rgb': rgbTriple(league.color2, '17 24 39') }}
-      className="min-h-screen lg:grid lg:grid-cols-[248px_minmax(0,1fr)]"
+      className="min-h-screen lg:grid lg:grid-cols-[var(--sidebar-w)_minmax(0,1fr)]"
     >
       <aside className="hidden border-r border-white/5 bg-brand px-4 py-5 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
         {brand}

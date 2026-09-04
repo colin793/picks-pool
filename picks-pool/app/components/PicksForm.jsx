@@ -35,6 +35,10 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
     return [...m.entries()];
   }, [games]);
 
+  const status = msg
+    ? <span className={msg.kind === 'ok' ? 'text-good' : msg.kind === 'warn' ? 'text-warn' : 'text-bad'}>{msg.text}</span>
+    : `${pickedOpen} of ${openGames.length} open picked. Games lock at kickoff.`;
+
   function submit() {
     if (!entered && Object.keys(picks).length === 0) {
       setMsg({ kind: 'err', text: 'Pick at least one game before you enter.' });
@@ -78,28 +82,47 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
         </section>
       ))}
 
-      <div className="card sticky bottom-[68px] z-20 !p-3 shadow-lg lg:bottom-4">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <label className="flex items-center gap-2 text-xs font-semibold text-ink2">
-            <span className="hidden sm:inline">Tiebreaker</span>
-            <span className="font-display text-sm text-ink">{lastGame ? (homeFirst ? `${lastGame.home_abbr} v ${lastGame.away_abbr}` : `${lastGame.away_abbr} @ ${lastGame.home_abbr}`) : 'last game'}</span>
-            <span className="hidden sm:inline">total {unit}</span>
-            <input className="input !w-20 !py-1.5 text-center" type="number" inputMode="numeric" min="0" max="300" value={tb} disabled={tbLocked}
-              onChange={(e) => setTb(e.target.value)} placeholder="44" aria-label={`Tiebreaker: total ${unit} in the last game`} />
-          </label>
-          <span className="flex-1 text-xs text-muted">
-            {msg
-              ? <span className={msg.kind === 'ok' ? 'text-good' : msg.kind === 'warn' ? 'text-warn' : 'text-bad'}>{msg.text}</span>
-              : `${pickedOpen} of ${openGames.length} open picked. Games lock at kickoff.`}
-          </span>
-          <div className="flex items-center gap-2">
-            {canWithdraw && (
-              <button type="button" className="btn btn-ghost btn-sm" onClick={withdraw} disabled={pending}>Withdraw</button>
-            )}
-            <button className="btn" onClick={submit} disabled={pending || (openGames.length === 0 && tbLocked)}>
-              {pending ? 'Saving…' : entered ? 'Update picks' : 'Submit picks'}
-            </button>
+      {/* Keeps the last row of games clear of the docked bar below. */}
+      <div aria-hidden className="h-24 lg:h-20" />
+
+      {/* Docked action bar: sits on the phone tab bar, spans the content column on
+          desktop. Fixed rather than sticky so it never floats over the cards. */}
+      <div
+        className="fixed inset-x-0 z-20 border-t border-line bg-surface/95 shadow-[0_-8px_24px_-16px_rgba(0,0,0,.35)] backdrop-blur
+          bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] lg:bottom-0 lg:left-[var(--sidebar-w)]"
+      >
+        {/* Progress across the top edge: how much of the open slate is picked. */}
+        <div className="absolute inset-x-0 top-[-1px] h-0.5 bg-line" aria-hidden>
+          <div className="h-full bg-accent transition-[width] duration-300"
+            style={{ width: openGames.length ? `${Math.round((pickedOpen / openGames.length) * 100)}%` : '0%' }} />
+        </div>
+        <div className="mx-auto max-w-5xl px-4 py-2.5 lg:px-8 lg:py-3">
+          <div className="flex items-center gap-3">
+            <label className="flex min-w-0 items-center gap-2">
+              <span className="shrink-0 text-xs font-semibold text-ink2">Tiebreaker</span>
+              <span className="truncate font-display text-sm font-semibold text-ink">
+                {lastGame ? (homeFirst ? `${lastGame.home_abbr} v ${lastGame.away_abbr}` : `${lastGame.away_abbr} @ ${lastGame.home_abbr}`) : 'last game'}
+              </span>
+              <span className="hidden text-xs text-ink2 lg:inline">total {unit}</span>
+              <input className="input !w-[4.5rem] !py-1.5 text-center" type="number" inputMode="numeric" min="0" max="300" value={tb} disabled={tbLocked}
+                onChange={(e) => setTb(e.target.value)} placeholder="44" aria-label={`Tiebreaker: total ${unit} in the last game`} />
+            </label>
+            <span className="hidden min-w-0 flex-1 truncate text-xs text-muted sm:block">{status}</span>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              {canWithdraw && (
+                <button type="button" className="btn btn-ghost btn-sm hidden sm:inline-flex" onClick={withdraw} disabled={pending}>Withdraw</button>
+              )}
+              <button className="btn" onClick={submit} disabled={pending || (openGames.length === 0 && tbLocked)}>
+                {pending ? 'Saving…' : <>{entered ? 'Update' : 'Submit'}<span className="hidden sm:inline">&nbsp;picks</span></>}
+              </button>
+            </div>
           </div>
+          <p className="mt-1.5 flex items-center gap-3 text-[11px] text-muted sm:hidden">
+            <span className="min-w-0 flex-1 truncate">{status}</span>
+            {canWithdraw && (
+              <button type="button" className="shrink-0 font-semibold text-ink2 underline-offset-2 hover:underline" onClick={withdraw} disabled={pending}>Withdraw</button>
+            )}
+          </p>
         </div>
       </div>
     </div>
