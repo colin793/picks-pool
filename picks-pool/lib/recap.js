@@ -1,48 +1,49 @@
 import { admin } from './supabase';
-import { weekResults, money } from './stats';
+import { slateResults, potFor, money } from './stats';
+import { sport as sportOf } from './scores/sports';
+import { sendEach } from './email/send';
 
-// Tuesday-morning recap: congratulate the winner, show the pot, lightly roast
-// the worst picker. One email per league, same text to everyone: the shared
-// roast is the point.
+// Results recap: congratulate the winner, show the pot, lightly roast the
+// worst picker. Same text to everyone in the league: the shared roast is the
+// point. Sent once per slate, the morning after it completes.
 export async function sendRecaps() {
   const db = admin();
-  const { data: meta } = await db.from('meta').select('*').eq('id', 1).single();
-  if (!meta?.season) return { sent: 0, reason: 'no meta' };
-
-  const { data: games } = await db.from('games').select('*').eq('season', meta.season);
-  const week = justEndedWeek(games ?? []);
-  if (!week) return { sent: 0, reason: 'no week just ended' };
-
   const { data: leagues } = await db.from('leagues').select('*').eq('recap_enabled', true);
   let sent = 0;
+  const done = [];
   for (const league of leagues ?? []) {
     try {
-      if (await recapLeague(db, league, meta.season, week, games)) sent += 1;
+      const { data: state } = await db.from('sport_state').select('*').eq('sport', league.sport).maybeSingle();
+      if (!state?.season) continue;
+      const { data: games } = await db.from('games').select('*').eq('sport', league.sport).eq('season', state.season);
+      const key = justEndedSlate(games ?? []);
+      if (!key) continue;
+      const n = await recapLeague(db, league, state.season, key, games.filter((g) => g.slate_key === key));
+      if (n) { sent += n; done.push(`${league.name}: ${key}`); }
     } catch (e) {
       console.error(`recap failed for league ${league.id}:`, e?.message);
     }
   }
-  return { sent, week };
+  return { sent, leagues: done };
 }
 
-// The week whose final kickoff happened in the last 40 hours and is fully final.
-function justEndedWeek(games) {
+// The slate whose final kickoff happened in the last 40 hours and is fully final.
+export function justEndedSlate(games) {
   const now = Date.now();
-  const weeks = [...new Set(games.map((g) => g.week))];
-  for (const week of weeks) {
-    const wg = games.filter((g) => g.week === week);
-    const last = Math.max(...wg.map((g) => new Date(g.kickoff).getTime()));
-    if (last <= now && now - last < 40 * 3600_000 && wg.every((g) => g.state === 'post')) return week;
+  const keys = [...new Set(games.map((g) => g.slate_key))];
+  for (const key of keys) {
+    const sg = games.filter((g) => g.slate_key === key);
+    const last = Math.max(...sg.map((g) => new Date(g.kickoff).getTime()));
+    if (last <= now && now - last < 40 * 3600_000 && sg.every((g) => g.state === 'post')) return key;
   }
   return null;
 }
 
-async function recapLeague(db, league, season, week, allGames) {
-  const games = allGames.filter((g) => g.week === week);
+async function recapLeague(db, league, season, key, games) {
   const { data: entries } = await db
     .from('entries').select('*')
-    .eq('league_id', league.id).eq('season', season).eq('week', week);
-  if (!entries?.length) return false;
+    .eq('league_id', league.id).eq('season', season).eq('slate_key', key);
+  if (!entries?.length) return 0;
 
   const entryIds = entries.map((e) => e.id);
   const { data: picks } = await db.from('picks').select('*').in('entry_id', entryIds);
@@ -51,11 +52,12 @@ async function recapLeague(db, league, season, week, allGames) {
     .eq('league_id', league.id);
   const names = new Map((members ?? []).map((m) => [m.user_id, m.profiles?.display_name ?? 'Player']));
   const emails = (members ?? []).map((m) => m.profiles?.email).filter(Boolean);
-  if (!emails.length) return false;
+  if (!emails.length) return 0;
 
-  const { rows, winners, actualTotal, lastGame } = weekResults(games, entries, picks ?? []);
-  const pot = entries.length * league.entry_fee_cents;
-  const share = Math.floor(pot / Math.max(winners.length, 1));
+  const label = games[0]?.slate_label ?? key;
+  const unit = sportOf(league.sport).unit;
+  const { rows, winners, actualTotal, lastGame } = slateResults(games, entries, picks ?? []);
+  const { pot, share } = potFor(entries, league.entry_fee_cents, winners);
   const winnerNames = winners.map((w) => names.get(w.user_id)).join(' and ');
 
   const bottomRank = Math.max(...rows.map((r) => r.rank));
@@ -77,19 +79,19 @@ async function recapLeague(db, league, season, week, allGames) {
     .map((m) => m.text);
 
   const facts = [
-    `League: ${league.name}. Week ${week} results.`,
+    `League: ${league.name}. ${label} results.`,
     `Winner${winners.length > 1 ? 's (split pot)' : ''}: ${winnerNames}, ${winners[0].correct} correct, wins ${money(share)}${winners.length > 1 ? ' each' : ''}.`,
     `Pot: ${money(pot)} (${entries.length} entries at ${money(league.entry_fee_cents)}).`,
-    lastGame ? `Tiebreaker game ${lastGame.away_abbr} @ ${lastGame.home_abbr} totaled ${actualTotal} points.` : '',
+    lastGame ? `Tiebreaker game ${lastGame.away_abbr} @ ${lastGame.home_abbr} totaled ${actualTotal} ${unit}.` : '',
     `Full standings: ${rows.map((r) => `${names.get(r.user_id)} ${r.correct}-${r.incorrect}`).join(', ')}.`,
     `Worst picker: ${worstName} at ${worst.correct}-${worst.incorrect}.`,
     worstMisses.length ? `${worstName}'s ugliest calls: ${worstMisses.join('; ')}.` : '',
   ].filter(Boolean).join('\n');
 
-  const fallback = `Week ${week} is in the books.\n\n${facts}\n\nSee the full board in the app.`;
+  const fallback = `${label} is in the books.\n\n${facts}\n\nSee the full board in the app.`;
   const body = (await aiRecap(facts)) ?? fallback;
 
-  return await sendEmail(emails, `${league.name}: week ${week} results`, body);
+  return await sendEach(emails, `${league.name}: ${label} results`, body);
 }
 
 async function aiRecap(facts) {
@@ -98,16 +100,12 @@ async function aiRecap(facts) {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
         model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5',
         max_tokens: 600,
         system:
-          'You write a short weekly recap email for a friendly NFL pick-em pool. ' +
+          'You write a short results recap email for a friendly sports pick-em pool. ' +
           'Plain text only, no markdown, no subject line, no emoji. 120-180 words. ' +
           'Congratulate the winner by name and state what they won. ' +
           'One light jab at the worst picker: roast the picks, never the person, ' +
@@ -123,20 +121,4 @@ async function aiRecap(facts) {
   } catch {
     return null; // fallback template goes out instead
   }
-}
-
-async function sendEmail(to, subject, text) {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) return false;
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: process.env.EMAIL_FROM || 'Picks Pool <onboarding@resend.dev>',
-      to,
-      subject,
-      text,
-    }),
-  });
-  return res.ok;
 }

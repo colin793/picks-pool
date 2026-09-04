@@ -1,102 +1,89 @@
-* { box-sizing: border-box; }
-:root { --c1: #1d4ed8; --c2: #111827; }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme tokens. Tailwind classes (bg-surface, text-ink, ...) read these, so
+   dark mode is a token swap, not a second set of classes. The two league
+   colors (--c1 accent, --c2 header) are set on the league shell from the DB. */
+:root {
+  --bg-rgb: 241 243 246;
+  --surface-rgb: 255 255 255;
+  --surface-2-rgb: 247 248 250;
+  --ink-rgb: 20 25 32;
+  --ink-2-rgb: 74 84 98;
+  --muted-rgb: 111 122 137;
+  --line-rgb: 225 229 235;
+  --good-rgb: 25 122 63;
+  --good-soft-rgb: 223 243 230;
+  --bad-rgb: 179 38 30;
+  --bad-soft-rgb: 251 229 226;
+  --warn-rgb: 161 98 7;
+  --warn-soft-rgb: 253 240 210;
+  --c1-rgb: 29 78 216;
+  --c2-rgb: 17 24 39;
+  --c1: rgb(var(--c1-rgb));
+  --c2: rgb(var(--c2-rgb));
+  --font-body: 'IBM Plex Sans';
+  --font-display: 'Barlow Condensed';
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-rgb: 14 19 25;
+    --surface-rgb: 22 29 38;
+    --surface-2-rgb: 28 37 48;
+    --ink-rgb: 231 236 242;
+    --ink-2-rgb: 177 188 201;
+    --muted-rgb: 127 139 154;
+    --line-rgb: 41 51 63;
+    --good-rgb: 95 208 138;
+    --good-soft-rgb: 20 48 31;
+    --bad-rgb: 243 145 137;
+    --bad-soft-rgb: 58 27 24;
+    --warn-rgb: 228 180 76;
+    --warn-soft-rgb: 51 39 15;
+  }
+}
+
+html { -webkit-tap-highlight-color: transparent; }
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: #f4f4f5;
-  color: #18181b;
+  @apply bg-bg text-ink font-sans antialiased;
+  font-size: 15px;
+  line-height: 1.55;
 }
-a { color: var(--c1); text-decoration: none; }
-.wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
-.card { background: #fff; border: 1px solid #e4e4e7; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-.brandbar { background: var(--c2); color: #fff; padding: 12px 16px; }
-.brandbar .inner { max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
-.brandbar img { height: 28px; }
-.brandbar .name { font-weight: 700; font-size: 17px; flex: 1; }
-.brandbar a { color: #fff; opacity: .85; font-size: 13px; }
-.tabs { display: flex; gap: 4px; max-width: 640px; margin: 0 auto; padding: 8px 16px 0; }
-.tabs a { padding: 8px 12px; border-radius: 8px 8px 0 0; font-weight: 600; font-size: 14px; color: #52525b; background: #e4e4e7; }
-.tabs a.on { background: #fff; color: var(--c1); }
-h1 { font-size: 20px; margin: 12px 0; }
-h2 { font-size: 16px; margin: 0 0 10px; }
-.btn {
-  display: inline-block; background: var(--c1); color: #fff !important; border: none;
-  padding: 10px 16px; border-radius: 8px; font-weight: 700; font-size: 15px; cursor: pointer;
-}
-.btn.gray { background: #71717a; }
-.btn:disabled { opacity: .5; }
-input[type=text], input[type=email], input[type=number], input[type=url] {
-  width: 100%; padding: 10px; border: 1px solid #d4d4d8; border-radius: 8px; font-size: 15px; margin: 4px 0 12px;
-}
-input[type=color] { border: none; width: 48px; height: 32px; padding: 0; background: none; }
-label { font-size: 13px; font-weight: 600; color: #52525b; }
-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #f0f0f1; white-space: nowrap; }
-th { font-size: 12px; color: #71717a; cursor: pointer; user-select: none; }
-.scrollx { overflow-x: auto; }
-.game { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f1; }
-.game:last-child { border-bottom: none; }
-.side {
-  flex: 1; padding: 10px 6px; border: 2px solid #d4d4d8; border-radius: 8px; background: #fff;
-  font-weight: 700; font-size: 14px; cursor: pointer; text-align: center;
-}
-.side.on { border-color: var(--c1); background: var(--c1); color: #fff; }
-.side:disabled { cursor: default; opacity: .7; }
-.at { color: #a1a1aa; font-size: 12px; width: 24px; text-align: center; }
-.meta { font-size: 12px; color: #71717a; }
-.badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
-.badge.red { background: #fee2e2; color: #b91c1c; }
-.badge.green { background: #dcfce7; color: #15803d; }
-.badge.blue { background: #dbeafe; color: #1d4ed8; }
-.pot { font-size: 26px; font-weight: 800; }
-.row { display: flex; gap: 12px; align-items: center; }
-.grow { flex: 1; }
-.err { color: #b91c1c; font-size: 14px; }
-.note { font-size: 13px; color: #52525b; }
 
-/* Sign-in hero */
-.hero {
-  min-height: 100vh; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; padding: 24px 16px;
-  background: linear-gradient(160deg, #0f172a 0%, #1e3a8a 60%, #1d4ed8 100%);
+@layer components {
+  .card { @apply bg-surface border border-line rounded-xl p-4 shadow-card; }
+  .h1 { @apply font-display font-bold text-3xl leading-none tracking-tight; }
+  .h2 { @apply font-display font-semibold text-xl leading-none tracking-tight; }
+  .eyebrow { @apply font-display uppercase tracking-[.14em] text-xs font-semibold text-muted; }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-semibold text-sm
+      bg-accent text-white shadow-sm transition
+      hover:brightness-110 active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+  .btn-ghost { @apply bg-surface2 text-ink border border-line shadow-none hover:bg-line/60; }
+  .btn-danger { @apply bg-bad text-white; }
+  .btn-sm { @apply px-3 py-1.5 text-xs; }
+  .input {
+    @apply w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink
+      placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent;
+  }
+  .label { @apply block text-xs font-semibold text-ink2 mb-1.5 mt-3 first:mt-0; }
+  .pill { @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide; }
+  .pill-good { @apply bg-goodsoft text-good; }
+  .pill-bad { @apply bg-badsoft text-bad; }
+  .pill-warn { @apply bg-warnsoft text-warn; }
+  .pill-muted { @apply bg-surface2 text-muted border border-line; }
+  .tbl { @apply w-full text-sm; }
+  /* :where() keeps these at utility specificity so text-right etc. win. */
+  .tbl :where(th) { @apply text-left text-[11px] uppercase tracking-wider text-muted font-semibold py-2 px-2 border-b border-line whitespace-nowrap; }
+  .tbl :where(td) { @apply py-2 px-2 border-b border-line/70 tabular-nums; }
+  .tbl :where(tr:last-child td) { @apply border-b-0; }
+  .num { @apply font-display font-bold tabular-nums; }
 }
-.hero .authcard {
-  background: #fff; border-radius: 16px; padding: 28px 24px; width: 100%; max-width: 400px;
-  box-shadow: 0 24px 60px rgba(2, 6, 23, .45);
-}
-.hero .mark {
-  width: 64px; height: 64px; border-radius: 50%; background: #eff6ff;
-  display: flex; align-items: center; justify-content: center; font-size: 32px;
-  margin: -60px auto 12px; border: 4px solid #fff; box-shadow: 0 8px 20px rgba(2, 6, 23, .25);
-}
-.hero h1 { text-align: center; font-size: 26px; margin: 0 0 4px; letter-spacing: -.5px; }
-.hero .tag { text-align: center; color: #52525b; font-size: 14px; margin: 0 0 20px; }
-.hero .btn { width: 100%; padding: 12px; font-size: 16px; }
-.hero .feats { display: flex; gap: 8px; margin-top: 20px; }
-.hero .feat {
-  flex: 1; background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .18);
-  border-radius: 10px; padding: 10px 6px; text-align: center; color: #e2e8f0; font-size: 12px;
-  font-weight: 600; max-width: 400px;
-}
-.hero .feat span { display: block; font-size: 20px; margin-bottom: 4px; }
-.hero .foot { color: #94a3b8; font-size: 12px; margin-top: 20px; text-align: center; }
 
-/* Signed-in home */
-.homehead { padding: 28px 0 8px; }
-.homehead .hi { font-size: 24px; font-weight: 800; margin: 0; letter-spacing: -.5px; }
-.homehead .sub { color: #52525b; font-size: 14px; margin: 4px 0 0; }
-.leaguecard {
-  display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid #e4e4e7;
-  border-left: 6px solid var(--lc, #1d4ed8); border-radius: 12px; padding: 16px; margin-bottom: 12px;
-  transition: transform .08s ease, box-shadow .08s ease;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
 }
-.leaguecard:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(2, 6, 23, .08); }
-.leaguecard .lname { font-weight: 700; font-size: 16px; color: #18181b; flex: 1; }
-.leaguecard .go { color: #a1a1aa; font-size: 18px; }
-.actionrow { display: flex; gap: 12px; margin-top: 8px; }
-.actioncard {
-  flex: 1; text-align: center; background: #fff; border: 1px dashed #d4d4d8; border-radius: 12px;
-  padding: 18px 10px; font-weight: 700; font-size: 14px; color: #3f3f46;
-}
-.actioncard span { display: block; font-size: 22px; margin-bottom: 6px; }
-.actioncard:hover { border-color: #1d4ed8; color: #1d4ed8; }
