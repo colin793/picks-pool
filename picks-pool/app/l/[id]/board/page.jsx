@@ -22,6 +22,7 @@ export default async function Board({ params, searchParams }) {
       <BoardView
         league={league} sport={sport} label={label} isCurrent={key === now.key}
         slates={slates} slateKey={key} me={user.id} {...data}
+        shareUrl={`/l/${league.id}/share?slate=${encodeURIComponent(key)}`}
       />
     </>
   );

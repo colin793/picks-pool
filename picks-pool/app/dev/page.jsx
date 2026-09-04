@@ -101,6 +101,7 @@ export default function Preview({ searchParams }) {
         <BoardView
           league={LEAGUE} sport={sport} label={slate.label} isCurrent slates={[{ key: '2026-2-01', label: 'Week 1' }, { key: slate.key, label: 'Demo Week' }]}
           slateKey={slate.key} games={games} entries={ENTRIES} picks={picks} names={NAMES} me={me} now={NOW}
+          shareUrl="/dev/share"
         />
       ) : (
         <>

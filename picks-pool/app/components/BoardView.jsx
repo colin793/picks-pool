@@ -2,9 +2,11 @@ import { slateResults, potFor, money } from '../../lib/stats';
 import Standings from './Standings';
 import PickGrid from './PickGrid';
 import SlatePicker from './SlatePicker';
+import ShareButton from './ShareButton';
+import Projections from './Projections';
 
 // The "This week" page body. Server page and /dev preview both render this.
-export default function BoardView({ league, sport, label, isCurrent, slates, slateKey, games, entries, picks, names, me, now = Date.now() }) {
+export default function BoardView({ league, sport, label, isCurrent, slates, slateKey, games, entries, picks, names, me, now = Date.now(), shareUrl = null }) {
   const { rows, complete, winners, actualTotal, lastGame, live, finals } = slateResults(games, entries, picks);
   const { pot, share } = potFor(entries, league.entry_fee_cents, winners);
   const started = games.filter((g) => new Date(g.kickoff).getTime() <= now).length;
@@ -16,7 +18,10 @@ export default function BoardView({ league, sport, label, isCurrent, slates, sla
           <p className="eyebrow">{sport.name} · {isCurrent ? 'current slate' : 'past slate'}</p>
           <h1 className="h1 mt-1">{label}</h1>
         </div>
-        <SlatePicker slates={slates} current={slateKey} />
+        <div className="flex items-center gap-2">
+          {shareUrl && rows.length > 0 && <ShareButton url={shareUrl} title={`${league.name} · ${label}`} text={`${league.name} standings, ${label}`} />}
+          <SlatePicker slates={slates} current={slateKey} />
+        </div>
       </div>
 
       <div className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
@@ -60,6 +65,10 @@ export default function BoardView({ league, sport, label, isCurrent, slates, sla
             : 'Ties share the better rank. Other players’ tiebreakers appear once the last game kicks off. Scores refresh on every visit.'}
         </p>
       </section>
+
+      {isCurrent && rows.length > 0 && !complete && (
+        <Projections games={games} entries={entries} picks={picks} names={names} me={me} draws={Boolean(sport.draws)} homeFirst={Boolean(sport.homeFirst)} />
+      )}
 
       {rows.length > 0 && games.length > 0 && (
         <section className="card">
