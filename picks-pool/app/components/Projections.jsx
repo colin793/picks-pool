@@ -1,8 +1,8 @@
 import { projections, needsText } from '../../lib/paths';
 
 // "What needs to happen": the board panel for the games that are on right now.
-export default function Projections({ games, entries, picks, names, me, draws = false, homeFirst = false }) {
-  const p = projections(games, entries, picks, { me, draws });
+export default function Projections({ games, entries, picks, names, me, draws = false, homeFirst = false, scoring = 'straight' }) {
+  const p = projections(games, entries, picks, { me, draws, scoring });
   if (!p.live.length && !p.pending) return null;
   const nameOf = (id) => names.get(id)?.display_name ?? 'Player';
   const matchup = (g) => (homeFirst ? `${g.home_abbr} v ${g.away_abbr}` : `${g.away_abbr} @ ${g.home_abbr}`);

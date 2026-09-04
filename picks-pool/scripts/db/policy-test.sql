@@ -398,6 +398,25 @@ do $$ declare n int; ok boolean; begin
   perform pg_temp.as_admin();
 end $$;
 
+-- Scoring mode: the commissioner sets it, and only until someone enters.
+do $$ declare ok boolean; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000009'); -- stranger runs the Other League, no entries
+  begin
+    update leagues set scoring = 'spread' where id = '10000000-0000-0000-0000-000000000002'; ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('a league with no entries can switch to the spread', ok);
+  begin
+    update leagues set scoring = 'nonsense' where id = '10000000-0000-0000-0000-000000000002'; ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('an unknown scoring mode is refused', ok);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- commissioner of the college league, which has an entry
+  begin
+    update leagues set scoring = 'spread' where id = '10000000-0000-0000-0000-000000000007'; ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('scoring is locked once the league has an entry', ok);
+  perform pg_temp.as_admin();
+end $$;
+
 -- ---------- summary ----------
 do $$ declare total int; declare failed int; begin
   -- `ok is not true` so a NULL (a comparison against a missing row) counts as a failure.

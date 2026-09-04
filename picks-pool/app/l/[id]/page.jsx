@@ -32,6 +32,7 @@ export default async function PicksPage({ params }) {
           <p className="eyebrow">
             {sport.name} · {entries.length} in this {sport.mode === 'week' ? 'week' : 'slate'}
             {curated && ` · ${games.length} of ${board.length} games featured`}
+            {league.scoring === 'spread' && ' · against the spread'}
           </p>
           <h1 className="h1 mt-1">{slate.label} picks</h1>
         </div>
@@ -59,6 +60,7 @@ export default async function PicksPage({ params }) {
           serverNow={Date.now()}
           allPicks={visible}
           entryCount={entries.length}
+          scoring={league.scoring}
         />
       )}
     </>

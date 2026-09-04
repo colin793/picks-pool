@@ -1,9 +1,10 @@
 import { FlashPill } from './Flash';
+import { outcome, ahead as aheadOf } from '../../lib/stats';
 
 // Everyone's picks, one row per player, one column per game. RLS decides
 // what is visible: your own picks always, others' once the game kicks off,
 // so a hidden pick is simply absent from `picks`.
-export default function PickGrid({ games, rows, picks, names, me, now = Date.now(), draws = false, homeFirst = false }) {
+export default function PickGrid({ games, rows, picks, names, me, now = Date.now(), draws = false, homeFirst = false, scoring = 'straight' }) {
   const byEntry = new Map();
   for (const p of picks) {
     if (!byEntry.has(p.entry_id)) byEntry.set(p.entry_id, new Map());
@@ -48,12 +49,11 @@ export default function PickGrid({ games, rows, picks, names, me, now = Date.now
                   const abbr = side === 'HOME' ? g.home_abbr : side === 'AWAY' ? g.away_abbr : 'DRAW';
                   const color = side === 'HOME' ? g.home_color : side === 'AWAY' ? g.away_color : '';
                   const final = g.state === 'post';
-                  const won = final && g.winner === side;
-                  const push = final && g.winner === 'TIE' && !draws;
-                  const lost = final && g.winner && !won && !push;
-                  const ahead = g.state === 'in' && (
-                    (side === 'HOME' && g.home_score > g.away_score) || (side === 'AWAY' && g.away_score > g.home_score)
-                    || (side === 'TIE' && g.home_score === g.away_score));
+                  const result = outcome(g, scoring);
+                  const won = final && result === side;
+                  const push = final && result === 'TIE' && !draws;
+                  const lost = final && result && !won && !push;
+                  const ahead = g.state === 'in' && aheadOf(g, scoring) === side;
                   return (
                     <td key={g.id} className="p-1 text-center">
                       {/* Flashes when this game's score changes: your row in team color, others quietly. */}
@@ -62,7 +62,7 @@ export default function PickGrid({ games, rows, picks, names, me, now = Date.now
                         className={`inline-block min-w-[38px] rounded px-1.5 py-1 font-display text-xs font-bold tracking-wide
                           ${won ? 'bg-goodsoft text-good ring-1 ring-good/40' : lost ? 'bg-badsoft text-bad opacity-70' : ahead ? 'bg-accent/10 text-accent ring-1 ring-accent/50' : 'bg-surface2 text-ink2'}`}
                         style={!final && color ? { boxShadow: `inset 0 -3px 0 ${color}` } : undefined}
-                        title={won ? 'Correct' : lost ? 'Wrong' : ahead ? 'Leading' : ''}
+                        title={won ? 'Correct' : push ? 'Push' : lost ? 'Wrong' : ahead ? 'Leading' : ''}
                       >
                         {abbr}
                       </FlashPill>

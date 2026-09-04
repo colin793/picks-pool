@@ -44,6 +44,9 @@ create table public.leagues (
   color1 text not null default '#1d4ed8',
   color2 text not null default '#111827',
   entry_fee_cents int not null default 100,
+  -- 'straight': pick the winner. 'spread': pick against the line frozen at
+  -- kickoff; a push scores for nobody. Fixed once the league has an entry.
+  scoring text not null default 'straight' check (scoring in ('straight', 'spread')),
   venmo_handle text not null default '',
   recap_enabled boolean not null default true,
   reminders_enabled boolean not null default true,
@@ -297,6 +300,9 @@ language plpgsql security definer set search_path = public as $$
 begin
   if new.sport <> old.sport then
     raise exception 'A league cannot change sport';
+  end if;
+  if new.scoring <> old.scoring and exists (select 1 from entries where league_id = old.id) then
+    raise exception 'Scoring cannot change once the league has an entry';
   end if;
   return new;
 end;

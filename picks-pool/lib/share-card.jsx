@@ -4,7 +4,7 @@ import { slateResults, potFor, money } from './stats';
 // A standings card for the group text: 1200x630, league colors, no emoji
 // (the image renderer would need a font for them; names carry enough).
 export function shareCard({ league, sport, label, games, entries, picks, names }) {
-  const { rows, complete, winners, live, finals } = slateResults(games, entries, picks);
+  const { rows, complete, winners, live, finals } = slateResults(games, entries, picks, { scoring: league.scoring ?? 'straight' });
   const { pot } = potFor(entries, league.entry_fee_cents, winners);
   const top = rows.slice(0, 8);
   // Rows share ~330px under the header; size them to the count so eight fit.

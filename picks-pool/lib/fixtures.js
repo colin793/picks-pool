@@ -59,8 +59,8 @@ function game(id, away, home, slot, opts = {}) {
 
 export const GAMES = [
   game('f1', 'NE', 'SEA', 'thu', { hs: 24, as: 17, line: -3.5, ou: 44.5 }), // Thursday night
-  game('f2', 'DAL', 'PHI', 'early', { hs: 20, as: 27 }),                 // early window, finals
-  game('f3', 'KC', 'BUF', 'early', { hs: 31, as: 28, ot: true }),
+  game('f2', 'DAL', 'PHI', 'early', { hs: 20, as: 27, line: 7, ou: 47 }),   // early window, finals; DAL by 7 on a 7-point line: a push against the spread
+  game('f3', 'KC', 'BUF', 'early', { hs: 31, as: 28, ot: true, line: -3.5, ou: 50.5 }), // BUF wins by 3, needed 4: KC covers
   game('f4', 'CLE', 'PIT', 'early', { hs: 13, as: 13 }),                 // a tie: scores for nobody
   game('f5', 'MIN', 'DET', 'early', { hs: 34, as: 10 }),
   game('f6', 'CAR', 'ATL', 'early', { hs: 21, as: 24 }),
@@ -85,7 +85,7 @@ export const PLAYERS = [
 
 export const LEAGUE = {
   id: 'league-demo', name: 'Draft With Purpose', sport: 'nfl', invite_code: 'a1b2c3d4',
-  logo_url: '', color1: '#1d4ed8', color2: '#111827', entry_fee_cents: 500,
+  logo_url: '', color1: '#1d4ed8', color2: '#111827', entry_fee_cents: 500, scoring: 'straight',
   venmo_handle: '@colin-b', recap_enabled: true, reminders_enabled: true, commissioner: 'u-colin',
 };
 

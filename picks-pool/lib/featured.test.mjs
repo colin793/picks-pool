@@ -45,6 +45,18 @@ const IND = '18';
 const fill = [g('umass', 'UCONN', 'UMASS', { hc: IND, ac: IND }), g('b1g', 'IOWA', 'NEB', { hc: B1G, ac: B1G, kickoff: '2026-09-13T00:00:00Z' })];
 assert.deepEqual(ids(featuredGames(fill, { n: 1, ...conf })), ['b1g']);
 
+// ---- within a tier, the closer line wins the slot ----
+const blowout = g('blowout', 'A', 'B', { hr: 3, ar: 20, kickoff: '2026-09-12T16:00:00Z' });
+const nailbiter = g('nail', 'C', 'D', { hr: 3, ar: 20, kickoff: '2026-09-12T20:00:00Z' });
+blowout.home_spread = -24; nailbiter.home_spread = -2.5;
+assert.deepEqual(ids(featuredGames([blowout, nailbiter], { n: 1, ...conf })), ['nail']);
+// ...but never across tiers: a ranked pair beats a close unranked game
+const closeUnranked = g('closeU', 'E', 'F', { kickoff: '2026-09-12T16:00:00Z' }); closeUnranked.home_spread = -1;
+assert.deepEqual(ids(featuredGames([closeUnranked, blowout], { n: 1, ...conf })), ['blowout']);
+// ...and a game with no line sorts after one with a line, then by kickoff
+const noLine = g('noline', 'G', 'H', { hr: 3, ar: 20, kickoff: '2026-09-12T12:00:00Z' });
+assert.deepEqual(ids(featuredGames([noLine, blowout], { n: 1, ...conf })), ['blowout']);
+
 // ---- output is in kickoff order whatever the tiers were ----
 const late = g('late', 'A', 'B', { hr: 1, ar: 2, kickoff: '2026-09-13T00:00:00Z' });
 const early = g('early', 'C', 'D', { kickoff: '2026-09-12T16:00:00Z' });

@@ -25,8 +25,8 @@ export function lockMessage(league, slateLabel, { minutes, first, open }, league
 // Who is on top right now, by correct picks (rank 1, ties included). A
 // leader set only changes when a game goes final, so this never chatters
 // with the live "leading" arrows.
-export function leaders(games, entries, picks) {
-  const { rows, finals } = slateResults(games, entries, picks);
+export function leaders(games, entries, picks, scoring = 'straight') {
+  const { rows, finals } = slateResults(games, entries, picks, { scoring });
   if (!finals || !rows.length || rows[0].correct === 0) return { key: '', ids: [], rows };
   const ids = rows.filter((r) => r.rank === 1).map((r) => r.user_id).sort();
   return { key: ids.join(','), ids, rows };

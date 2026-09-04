@@ -26,7 +26,7 @@ function SlateRow({ g, on, started, action }) {
 }
 
 // The Admin page body. The server page computes the money state; /dev feeds fixtures.
-export default function AdminView({ user, league, sport, members, names, inviteUrl, now, feeRows, owed, paidOut, slate = null, clock = Date.now() }) {
+export default function AdminView({ user, league, sport, members, names, inviteUrl, now, feeRows, owed, paidOut, slate = null, clock = Date.now(), hasEntries = false }) {
   const inSlate = new Set((slate?.games ?? []).map((g) => g.id));
   const available = (slate?.board ?? []).filter((g) => !inSlate.has(g.id) && new Date(g.kickoff).getTime() > clock);
   return (
@@ -156,6 +156,12 @@ export default function AdminView({ user, league, sport, members, names, inviteU
           </div>
           <label className="label">Entry fee (dollars per slate)</label>
           <input className="input" type="number" name="fee" step="0.25" min="0" defaultValue={(league.entry_fee_cents / 100).toFixed(2)} />
+          <label className="label">Scoring</label>
+          <select className="input" name="scoring" defaultValue={league.scoring ?? 'straight'} disabled={hasEntries}>
+            <option value="straight">Straight up: pick the winner</option>
+            <option value="spread">Against the spread: pick who covers the line at kickoff</option>
+          </select>
+          <p className="mt-1 text-xs text-muted">{hasEntries ? 'Locked: the league already has entries. It is set for the season.' : 'Fixed once anyone enters. A push scores for nobody; a game with no line is scored straight up.'}</p>
           <label className="label">Your Venmo handle (entry fees go here)</label>
           <input className="input" type="text" name="venmo" defaultValue={league.venmo_handle} placeholder="@your-venmo" />
           <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" name="recap" defaultChecked={league.recap_enabled} /> Send the results recap email</label>

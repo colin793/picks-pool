@@ -52,9 +52,20 @@ export default function Preview({ searchParams }) {
         <Link href="/dev?view=featured" className="underline">featured</Link>
         <Link href="/dev?view=cfb" className="underline">college picks</Link>
         <Link href="/dev?view=notify" className="underline">notifications</Link>
+        <Link href="/dev?view=spread" className="underline">spread</Link>
         {['picks', 'board'].includes(view) && <DevBump />}
       </div>
-      {view === 'notify' ? (
+      {view === 'spread' ? (
+        <>
+          <div className="mb-5">
+            <p className="eyebrow">NFL · against the spread</p>
+            <h1 className="h1 mt-1">Demo Week picks</h1>
+          </div>
+          <PicksForm leagueId={LEAGUE.id} season={2026} slate={slate.key} games={games} initialPicks={myPicks}
+            initialTiebreaker={myEntry.tiebreaker} entry={myEntry} unit={sport.unit} fixedNow={NOW}
+            allPicks={picks} entryCount={ENTRIES.length} scoring="spread" />
+        </>
+      ) : view === 'notify' ? (
         <section className="card max-w-lg">
           <h2 className="h2 mb-1">Notifications</h2>
           <p className="mb-3 text-xs text-muted">The Settings switch, wired to this browser only (no server in the preview).</p>
