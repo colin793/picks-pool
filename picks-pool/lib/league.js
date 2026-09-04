@@ -32,8 +32,13 @@ export async function currentSlate(league) {
 // lib/featured.js and it is frozen from then on, except for commissioner
 // swaps. The rule is deterministic, so two people opening it at once agree.
 export async function ensureSlate(db, league, sport, season, slateKey, board) {
-  const { data: rows } = await db.from('slate_games').select('game_id, slate_key')
+  const { data: rows, error } = await db.from('slate_games').select('game_id, slate_key')
     .eq('league_id', league.id).eq('season', season).eq('slate_key', slateKey);
+  if (error) {
+    if (!missingTable(error)) throw new Error(error.message);
+    console.warn('slate_games missing: run supabase/migrations/2026-09-05-featured-slates.sql');
+    return [];
+  }
   if (rows?.length || !sport.featured || !board.length) return rows ?? [];
   const chosen = featuredGames(board, { n: sport.featured, ...(sport.conferences ?? {}) });
   const fresh = chosen.map((g) => ({ league_id: league.id, season, slate_key: slateKey, game_id: g.id }));
@@ -63,11 +68,27 @@ export async function loadSlate(db, league, season, slateKey) {
   return { games, board: board ?? [], curated: rows.length > 0, entries: entries ?? [], picks: picks ?? [], members: members ?? [], names };
 }
 
+// A database that has not had the featured-slates migration yet has no
+// slate_games table. That is "nothing curated", not a crash: the app must
+// keep working whichever order the code deploy and the SQL paste happen in.
+function missingTable(error) {
+  return error && (error.code === 'PGRST205' || error.code === '42P01' || /slate_games.*(not exist|not find|schema cache)/i.test(error.message ?? ''));
+}
+
 // Every curated-slate row for a league's season (empty for sports that play
 // the whole board). Pass to applyFeatured() before scoring season-wide data.
 export async function featuredRows(db, league, season) {
-  return fetchAll(() => db.from('slate_games').select('slate_key, game_id')
-    .eq('league_id', league.id).eq('season', season).order('game_id'));
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db.from('slate_games').select('slate_key, game_id')
+      .eq('league_id', league.id).eq('season', season).order('game_id').range(from, from + 999);
+    if (error) {
+      if (missingTable(error)) { console.warn('slate_games missing: run supabase/migrations/2026-09-05-featured-slates.sql'); return []; }
+      throw new Error(error.message);
+    }
+    out.push(...(data ?? []));
+    if (!data || data.length < 1000) return out;
+  }
 }
 
 // Slates this league's sport has games for this season, newest first.
