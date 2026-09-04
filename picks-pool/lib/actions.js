@@ -243,6 +243,23 @@ export async function removePushSubscription(endpoint) {
   await sb().from('push_subscriptions').delete().eq('endpoint', String(endpoint)); // RLS: own rows
 }
 
+// ---------- chat ----------
+
+export async function postMessage(leagueId, formData) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  const body = String(formData.get('body') || '').trim().slice(0, 500);
+  if (!body) return;
+  const { error } = await sb().from('messages').insert({ league_id: leagueId, user_id: user.id, body }); // RLS: members
+  if (error) throw new Error(error.message);
+  revalidatePath(`/l/${leagueId}/chat`);
+}
+
+export async function deleteMessage(leagueId, id) {
+  await sb().from('messages').delete().eq('id', id); // RLS: own, or commissioner
+  revalidatePath(`/l/${leagueId}/chat`);
+}
+
 // ---------- profile ----------
 
 export async function saveProfile(formData) {

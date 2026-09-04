@@ -191,6 +191,17 @@ create table public.push_sent (
   primary key (league_id, season, slate_key, kind, key)
 );
 
+-- League chat. Members read and post; you can delete your own message, the
+-- commissioner can delete anyone's. Bodies are capped at 500 characters.
+create table public.messages (
+  id uuid primary key default gen_random_uuid(),
+  league_id uuid not null references public.leagues on delete cascade,
+  user_id uuid not null references public.profiles on delete cascade,
+  body text not null check (char_length(body) between 1 and 500),
+  created_at timestamptz not null default now()
+);
+create index messages_league_idx on public.messages (league_id, created_at desc);
+
 -- ---------- helper functions ----------
 -- security definer so policies can consult tables the caller may not read.
 
@@ -325,6 +336,7 @@ alter table public.payouts enable row level security;
 alter table public.recaps_sent enable row level security;
 alter table public.push_subscriptions enable row level security;
 alter table public.push_sent enable row level security;
+alter table public.messages enable row level security;
 
 -- reference data: read-only for anyone signed in.
 create policy sports_read on public.sports for select to authenticated using (true);
@@ -410,6 +422,14 @@ create policy payouts_insert on public.payouts for insert to authenticated
   with check (is_commissioner(league_id));
 create policy payouts_delete on public.payouts for delete to authenticated
   using (is_commissioner(league_id));
+
+-- messages: the league's own room.
+create policy messages_read on public.messages for select to authenticated
+  using (is_member(league_id));
+create policy messages_insert on public.messages for insert to authenticated
+  with check (user_id = auth.uid() and is_member(league_id));
+create policy messages_delete on public.messages for delete to authenticated
+  using (user_id = auth.uid() or is_commissioner(league_id));
 
 -- push subscriptions: your own devices, nothing else.
 create policy push_subscriptions_read on public.push_subscriptions for select to authenticated
