@@ -1,5 +1,6 @@
 import { IBM_Plex_Sans, Barlow_Condensed } from 'next/font/google';
 import './globals.css';
+import PushSetup from './components/PushSetup';
 
 const body = IBM_Plex_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-body', display: 'swap' });
 const display = Barlow_Condensed({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-display', display: 'swap' });
@@ -25,7 +26,10 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${body.variable} ${display.variable}`}>
-      <body>{children}</body>
+      <body>
+        <PushSetup />
+        {children}
+      </body>
     </html>
   );
 }

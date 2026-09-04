@@ -83,6 +83,16 @@ curl -H "Authorization: Bearer YOUR_CRON_SECRET" "https://YOUR-APP.vercel.app/ap
 curl -H "Authorization: Bearer YOUR_CRON_SECRET" "https://YOUR-APP.vercel.app/api/cron/scores?sport=nfl"
 ```
 
+### 7. Push notifications (optional)
+
+Two alerts, nothing else: "picks lock in 45 min and you haven't entered", and "Kevin just passed you" when the lead changes hands after a final. Per device; each person turns it on in Settings (on an iPhone, only after adding the app to the home screen).
+
+1. Make a key pair once: `npx web-push generate-vapid-keys` on any computer with Node, or any VAPID key generator site.
+2. In Vercel, add `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (plain), `VAPID_PRIVATE_KEY` (Secret) and `VAPID_SUBJECT` (`mailto:you@example.com`), then redeploy.
+3. Run `picks-pool/supabase/migrations/2026-09-05-push-notifications.sql` in the Supabase SQL Editor once.
+
+The alerts run after every real score sync (so whenever anyone has the app open on game day) and from `/api/cron/push`. For the hour nobody has it open, point a scheduler at that route every five minutes on game days: Vercel's cron on a Pro plan, or a free pinger such as cron-job.org with the header `Authorization: Bearer YOUR_CRON_SECRET`.
+
 ## House rules
 
 Every game straight up. No pick on a game counts as a loss. Tie games score for nobody. Ties for first go to the tiebreaker (closest to the total points of the slate's last game), and a dead heat splits the pot. You can withdraw from a slate until one of your picked games kicks off. Only the commissioner can mark entries paid, remove members, hand off the league, or delete it. All of it is enforced by database rules, not the browser, so nobody edits a pick after kickoff.
@@ -144,6 +154,10 @@ v2 changes the schema (weeks became slates, games gained a sport and logos). The
 2. Rotate `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET` in Supabase and Vercel while you're there.
 3. Deploy the `v2` branch. `vercel.json` now has one cron instead of two.
 4. Existing accounts keep working (schema.sql rebuilds their profile rows); people will need to set their display name and Venmo handle again in Settings.
+
+## Upgrading from v2.1 to v2.2 (push notifications)
+
+Same shape: paste `picks-pool/supabase/migrations/2026-09-05-push-notifications.sql` into the Supabase SQL Editor and Run, then add the three VAPID variables in Vercel (Setup, step 7). Without the variables the app runs exactly as before and the Notifications section in Settings says so.
 
 ## Upgrading from v2 to v2.1 (featured slates)
 

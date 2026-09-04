@@ -372,6 +372,32 @@ do $$ declare t timestamptz; begin
     t = (select max(kickoff) from games where sport = 'nfl' and season = 2026 and slate_key = '2026-2-01'));
 end $$;
 
+-- Push subscriptions: your own devices and nobody else's; the sent log is server-only.
+do $$ declare n int; ok boolean; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  begin
+    insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ('00000000-0000-0000-0000-000000000002', 'https://push.example/alice', 'k', 'a'); ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('alice can register her own device', ok);
+  begin
+    insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ('00000000-0000-0000-0000-000000000003', 'https://push.example/not-bob', 'k', 'a'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('alice cannot register a device as bob', ok);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000003'); -- bob
+  select count(*) into n from push_subscriptions;
+  perform pg_temp.check('bob cannot see alice''s devices', n = 0);
+  delete from push_subscriptions where endpoint = 'https://push.example/alice';
+  get diagnostics n = row_count;
+  perform pg_temp.check('bob cannot remove alice''s device', n = 0);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  delete from push_subscriptions where endpoint = 'https://push.example/alice';
+  get diagnostics n = row_count;
+  perform pg_temp.check('alice can remove her own device', n = 1);
+  select count(*) into n from push_sent;
+  perform pg_temp.check('the push log is invisible to players', n = 0);
+  perform pg_temp.as_admin();
+end $$;
+
 -- ---------- summary ----------
 do $$ declare total int; declare failed int; begin
   -- `ok is not true` so a NULL (a comparison against a missing row) counts as a failure.

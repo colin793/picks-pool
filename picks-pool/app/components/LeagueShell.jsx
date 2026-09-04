@@ -4,10 +4,11 @@ import { Icon } from './icons';
 import { rgbTriple } from '../../lib/color';
 import { signOut } from '../../lib/actions';
 import InstallPrompt from './InstallPrompt';
+import PushPrompt from './PushPrompt';
 
 // The league frame: sidebar on desktop, header + tab bar on phones. Pure
 // presentation; app/l/[id]/layout.jsx feeds it real data, /dev feeds fixtures.
-export default function LeagueShell({ league, sport, slate, profile, isCommish, base, children, signOutAction = signOut }) {
+export default function LeagueShell({ league, sport, slate, profile, isCommish, base, children, signOutAction = signOut, demo = false }) {
   const brand = (
     <div className="flex min-w-0 items-center gap-3">
       {league.logo_url ? (
@@ -55,6 +56,7 @@ export default function LeagueShell({ league, sport, slate, profile, isCommish, 
 
       <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-5 lg:px-8 lg:pb-10 lg:pt-8">
         <InstallPrompt />
+        <PushPrompt publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY} demo={demo} />
         {children}
       </main>
       <TabBar base={base} isCommish={isCommish} />

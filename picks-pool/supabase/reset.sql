@@ -4,6 +4,8 @@
 drop view if exists public.entries_board;
 drop trigger if exists on_auth_user_created on auth.users;
 drop table if exists public.recaps_sent cascade;  -- v2
+drop table if exists public.push_sent cascade;    -- v2.2
+drop table if exists public.push_subscriptions cascade; -- v2.2
 drop table if exists public.payouts cascade;
 drop table if exists public.picks cascade;
 drop table if exists public.entries cascade;

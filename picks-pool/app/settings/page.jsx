@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { sb, currentUser } from '../../lib/supabase';
 import { saveProfile, leaveLeague } from '../../lib/actions';
+import PushToggle from '../components/PushToggle';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Settings' };
@@ -30,6 +31,14 @@ export default async function Settings() {
         <p className="mt-3 text-xs text-muted">Signed in as {user.email}. Your name, emoji and Venmo handle are visible to people in your leagues.</p>
         <button className="btn mt-4">Save</button>
       </form>
+
+      <section className="card mt-4">
+        <h2 className="h2 mb-1">Notifications</h2>
+        <p className="mb-3 text-xs text-muted">
+          Two alerts, nothing else: picks about to lock when you haven&rsquo;t entered, and someone passing you on the board. Per device, so turn it on from your phone.
+        </p>
+        <PushToggle publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY} />
+      </section>
 
       {leagues.length > 0 && (
         <section className="card mt-4">
