@@ -1,5 +1,7 @@
 import { leagueContext, currentSlate, loadSlate, slateList } from '../../../../lib/league';
 import BoardView from '../../../components/BoardView';
+import LiveRefresh from '../../../components/LiveRefresh';
+import { refreshPlan } from '../../../../lib/live';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'This week' };
@@ -15,9 +17,12 @@ export default async function Board({ params, searchParams }) {
   const data = await loadSlate(db, league, now.season, key);
 
   return (
-    <BoardView
-      league={league} sport={sport} label={label} isCurrent={key === now.key}
-      slates={slates} slateKey={key} me={user.id} {...data}
-    />
+    <>
+      <LiveRefresh {...refreshPlan(data.games)} />
+      <BoardView
+        league={league} sport={sport} label={label} isCurrent={key === now.key}
+        slates={slates} slateKey={key} me={user.id} {...data}
+      />
+    </>
   );
 }

@@ -4,6 +4,7 @@ import LeagueShell from '../components/LeagueShell';
 import PicksForm from '../components/PicksForm';
 import BoardView from '../components/BoardView';
 import AdminView from '../components/AdminView';
+import DevBump from '../components/DevBump';
 import { sport as sportOf } from '../../lib/scores/sports';
 import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, visiblePicks, EPL_GAMES, EPL_PICKS, EPL_NOW } from '../../lib/fixtures';
 
@@ -17,6 +18,17 @@ export const metadata = { title: 'Design preview' };
 export default function Preview({ searchParams }) {
   if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_PREVIEW) notFound();
   const view = searchParams?.view ?? 'picks';
+  // ?bump=N nudges the live games' scores so the flash can be seen.
+  const bump = Math.max(0, Number(searchParams?.bump ?? 0) || 0);
+  const games = bump
+    ? GAMES.map((g, i) => (g.state !== 'in' ? g : {
+        ...g,
+        // Alternate which side scores on each click, so both the side you
+        // picked and the one you did not get a turn.
+        home_score: g.home_score + 3 * Math.ceil((bump + (i % 2)) / 2),
+        away_score: g.away_score + 7 * Math.floor((bump + (i % 2)) / 2),
+      }))
+    : GAMES;
   const sport = sportOf(LEAGUE.sport);
   const slate = { season: 2026, key: '2026-2-00', label: 'Demo Week' };
   const me = 'u-colin';
@@ -28,12 +40,13 @@ export default function Preview({ searchParams }) {
 
   return (
     <LeagueShell league={LEAGUE} sport={sport} slate={slate} profile={NAMES.get(me)} isCommish base="/dev" signOutAction={noop}>
-      <div className="mb-4 flex gap-2 text-xs">
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
         <span className="pill pill-warn">Preview · fixture data · clock frozen at Sun 4:40 PM ET</span>
         <Link href="/dev" className="underline">picks</Link>
         <Link href="/dev?view=board" className="underline">board</Link>
         <Link href="/dev?view=admin" className="underline">admin</Link>
         <Link href="/dev?view=epl" className="underline">premier league</Link>
+        {view !== 'epl' && view !== 'admin' && <DevBump />}
       </div>
       {view === 'epl' ? (
         <>
@@ -55,7 +68,7 @@ export default function Preview({ searchParams }) {
       ) : view === 'board' ? (
         <BoardView
           league={LEAGUE} sport={sport} label={slate.label} isCurrent slates={[{ key: '2026-2-01', label: 'Week 1' }, { key: slate.key, label: 'Demo Week' }]}
-          slateKey={slate.key} games={GAMES} entries={ENTRIES} picks={picks} names={NAMES} me={me} now={NOW}
+          slateKey={slate.key} games={games} entries={ENTRIES} picks={picks} names={NAMES} me={me} now={NOW}
         />
       ) : (
         <>
@@ -66,7 +79,7 @@ export default function Preview({ searchParams }) {
             </div>
             <span className="pill pill-good">Entry paid</span>
           </div>
-          <PicksForm leagueId={LEAGUE.id} season={2026} slate={slate.key} games={GAMES} initialPicks={myPicks}
+          <PicksForm leagueId={LEAGUE.id} season={2026} slate={slate.key} games={games} initialPicks={myPicks}
             initialTiebreaker={myEntry.tiebreaker} entry={myEntry} unit={sport.unit} fixedNow={NOW} />
         </>
       )}

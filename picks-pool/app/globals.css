@@ -89,6 +89,23 @@ body {
   .num { @apply font-display font-bold tabular-nums; }
 }
 
+/* Score flashes. A ring in the team's color blooms and settles when a live
+   refresh brings a new score. --glow is set inline per element; the soft
+   variant is for other people's cells and the side you did not pick. Reduced
+   motion disables all animation below, so those users see the new number only. */
+@keyframes score-pop {
+  0%   { box-shadow: 0 0 0 0 var(--glow); transform: scale(1); }
+  20%  { box-shadow: 0 0 0 3px var(--glow), 0 0 22px 2px var(--glow); transform: scale(1.03); }
+  100% { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+}
+@keyframes score-pop-soft {
+  0%   { box-shadow: 0 0 0 0 transparent; }
+  25%  { box-shadow: 0 0 0 2px color-mix(in srgb, var(--glow) 55%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.flash { position: relative; z-index: 1; animation: score-pop 1.6s ease-out both; }
+.flash-soft { animation: score-pop-soft 1.2s ease-out both; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
