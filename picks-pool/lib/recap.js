@@ -3,6 +3,8 @@ import { slateResults, potFor, money } from './stats';
 import { sport as sportOf } from './scores/sports';
 import { sendEach } from './email/send';
 import { fetchAll } from './db';
+import { applyFeatured } from './featured';
+import { featuredRows } from './league';
 
 // Results recap: congratulate the winner, show the pot, lightly roast the
 // worst picker. Same text to everyone in the league: the shared roast is the
@@ -16,7 +18,10 @@ export async function sendRecaps() {
     try {
       const { data: state } = await db.from('sport_state').select('*').eq('sport', league.sport).maybeSingle();
       if (!state?.season) continue;
-      const games = await fetchAll(() => db.from('games').select('*').eq('sport', league.sport).eq('season', state.season));
+      const games = applyFeatured(
+        await fetchAll(() => db.from('games').select('*').eq('sport', league.sport).eq('season', state.season)),
+        await featuredRows(db, league, state.season)
+      );
       const { data: already } = await db.from('recaps_sent').select('slate_key').eq('league_id', league.id).eq('season', state.season);
       const sentKeys = new Set((already ?? []).map((r) => r.slate_key));
       for (const key of justEndedSlates(games)) {

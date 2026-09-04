@@ -13,6 +13,20 @@
 // draws: true means a draw is a pickable outcome (pick 'TIE'); otherwise a
 // tie scores for nobody. homeFirst lists the home side first ("Chelsea v
 // Arsenal") instead of the American "away @ home".
+//
+// featured: a slate this size is picked automatically from the full board
+// (lib/featured.js) and frozen per league; the commissioner can swap games.
+// Sports without it play every game. Conference ids are ESPN's; fbs is used
+// to skip a ranked team's lower-division opponent, power to fill the slate
+// when the poll runs out.
+
+export const CFB_CONFERENCES = {
+  // Football Bowl Subdivision, by ESPN conference id.
+  fbs: new Set(['1', '4', '5', '8', '9', '12', '15', '17', '18', '37', '151']),
+  // ACC, Big 12, Big Ten, SEC. Not the independents: Notre Dame is ranked
+  // nearly every week and gets in that way, and UMass or UConn should not.
+  power: new Set(['1', '4', '5', '8']),
+};
 
 export const SPORTS = {
   nfl: {
@@ -33,6 +47,8 @@ export const SPORTS = {
     params: 'groups=80&limit=400', // FBS only; default is Top 25
     unit: 'points',
     postLabels: { 1: 'Bowl Season' },
+    featured: 15,
+    conferences: CFB_CONFERENCES,
   },
   nba: { key: 'nba', name: 'NBA', path: 'basketball/nba', mode: 'date', params: 'limit=200', unit: 'points' },
   nhl: { key: 'nhl', name: 'NHL', path: 'hockey/nhl', mode: 'date', params: 'limit=200', unit: 'goals' },

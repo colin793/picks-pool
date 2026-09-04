@@ -72,10 +72,14 @@ create table public.games (
   home_name text not null,
   home_logo text not null default '',
   home_color text not null default '',
+  home_rank int,                     -- AP Top 25 rank at last sync, null if unranked
+  home_conf text not null default '', -- ESPN conference id (college), '' elsewhere
   away_abbr text not null,
   away_name text not null,
   away_logo text not null default '',
   away_color text not null default '',
+  away_rank int,
+  away_conf text not null default '',
   home_score int not null default 0,
   away_score int not null default 0,
   state text not null default 'pre', -- pre | in | post
@@ -92,6 +96,19 @@ create table public.sport_state (
   slate_key text,
   slate_label text,
   last_sync timestamptz
+);
+
+-- A league's curated slate: which of the board's games count this week. Sports
+-- with a `featured` size (college football) get one written by the server the
+-- first time the slate is opened, frozen from then on except for commissioner
+-- swaps. A slate with no rows plays every game (NFL).
+create table public.slate_games (
+  league_id uuid not null references public.leagues on delete cascade,
+  season int not null,
+  slate_key text not null,
+  game_id text not null references public.games,
+  created_at timestamptz not null default now(),
+  primary key (league_id, season, slate_key, game_id)
 );
 
 create table public.entries (
@@ -156,11 +173,20 @@ language sql security definer set search_path = public stable as $$
   );
 $$;
 
--- When the slate's last game kicks off (tiebreakers lock, other players' tiebreakers reveal).
+-- Is this game in the league's slate? True when the league has no curated set
+-- for the slate (every game plays) or the set names it.
+create function public.in_slate(l uuid, s int, k text, g text) returns boolean
+language sql security definer set search_path = public stable as $$
+  select not exists (select 1 from slate_games where league_id = l and season = s and slate_key = k)
+      or exists (select 1 from slate_games where league_id = l and season = s and slate_key = k and game_id = g);
+$$;
+
+-- When the slate's last game kicks off (tiebreakers lock, other players'
+-- tiebreakers reveal). Only games in the league's slate count.
 create function public.slate_lock_at(l uuid, s int, k text) returns timestamptz
 language sql security definer set search_path = public stable as $$
   select max(g.kickoff) from games g join leagues lg on lg.sport = g.sport
-  where lg.id = l and g.season = s and g.slate_key = k;
+  where lg.id = l and g.season = s and g.slate_key = k and in_slate(l, s, k, g.id);
 $$;
 
 -- An entry is locked once any of its picks is on a game that has kicked off.
@@ -185,6 +211,7 @@ language sql security definer set search_path = public stable as $$
     where en.id = e and en.user_id = auth.uid()
       and gm.kickoff > now()
       and gm.sport = lg.sport and gm.season = en.season and gm.slate_key = en.slate_key
+      and in_slate(lg.id, en.season, en.slate_key, g)
       and (side <> 'TIE' or sp.draws)
   );
 $$;
@@ -248,6 +275,7 @@ alter table public.leagues enable row level security;
 alter table public.memberships enable row level security;
 alter table public.games enable row level security;
 alter table public.sport_state enable row level security;
+alter table public.slate_games enable row level security;
 alter table public.entries enable row level security;
 alter table public.picks enable row level security;
 alter table public.payouts enable row level security;
@@ -290,6 +318,16 @@ create policy memberships_delete on public.memberships for delete to authenticat
     (user_id = auth.uid() and not is_commissioner(league_id))
     or (is_commissioner(league_id) and user_id <> auth.uid())
   );
+
+-- slate_games: members see their league's slate. The server writes the
+-- initial set (service role); the commissioner swaps games in and out.
+-- Removing a game that has kicked off would rewrite history, so it is refused.
+create policy slate_games_read on public.slate_games for select to authenticated
+  using (is_member(league_id));
+create policy slate_games_insert on public.slate_games for insert to authenticated
+  with check (is_commissioner(league_id));
+create policy slate_games_delete on public.slate_games for delete to authenticated
+  using (is_commissioner(league_id) and exists (select 1 from games g where g.id = game_id and g.kickoff > now()));
 
 -- entries: members read raw rows (use the entries_board view anywhere other
 -- players' tiebreakers must stay hidden until lock). Withdraw while nothing

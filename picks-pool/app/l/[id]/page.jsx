@@ -14,7 +14,7 @@ export default async function PicksPage({ params }) {
     return <div className="card"><p>No games synced yet for {sport.name}. ESPN usually shows up within a minute; refresh.</p></div>;
   }
 
-  const { games, entries } = await loadSlate(db, league, slate.season, slate.key);
+  const { games, board, curated, entries } = await loadSlate(db, league, slate.season, slate.key);
   const entry = entries.find((e) => e.user_id === user.id) ?? null;
   const { data: myPicks } = entry
     ? await db.from('picks').select('game_id, picked').eq('entry_id', entry.id)
@@ -29,7 +29,10 @@ export default async function PicksPage({ params }) {
       <LiveRefresh {...refreshPlan(games)} />
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eyebrow">{sport.name} · {entries.length} in this {sport.mode === 'week' ? 'week' : 'slate'}</p>
+          <p className="eyebrow">
+            {sport.name} · {entries.length} in this {sport.mode === 'week' ? 'week' : 'slate'}
+            {curated && ` · ${games.length} of ${board.length} games featured`}
+          </p>
           <h1 className="h1 mt-1">{slate.label} picks</h1>
         </div>
         {entry && !entry.paid && payLink && (

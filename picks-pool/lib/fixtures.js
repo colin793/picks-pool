@@ -142,3 +142,47 @@ export const EPL_GAMES = [
   match('m4', 'MCI', 'TOT', '2026-09-13T15:30:00Z'),
 ];
 export const EPL_PICKS = { m1: 'TIE', m2: 'HOME', m3: 'TIE', m4: 'AWAY' };
+
+// A college football Saturday for the /dev?view=featured preview: a board of
+// twenty with ranks and conferences, so the auto-pick has something to chew on.
+const C = (abbr, name, rank, conf) => ({ abbr, name, rank, conf });
+const SEC = '8', B1G = '5', ACC = '1', B12 = '4', MAC = '15', MWC = '17', FCS = '20', IND = '18';
+const cfbTeams = {
+  UGA: C('UGA', 'Georgia', 1, SEC), TEX: C('TEX', 'Texas', 2, SEC), OSU: C('OSU', 'Ohio St', 3, B1G), ORE: C('ORE', 'Oregon', 4, B1G),
+  PSU: C('PSU', 'Penn St', 5, B1G), ND: C('ND', 'Notre Dame', 6, IND), ALA: C('ALA', 'Alabama', 7, SEC), MIA: C('MIA', 'Miami', 8, ACC),
+  TENN: C('TENN', 'Tennessee', 12, SEC), MISS: C('MISS', 'Ole Miss', 14, SEC), CLEM: C('CLEM', 'Clemson', 9, ACC), LSU: C('LSU', 'LSU', 11, SEC),
+  MICH: C('MICH', 'Michigan', 17, B1G), USC: C('USC', 'USC', 20, B1G), ISU: C('ISU', 'Iowa St', 22, B12), BSU: C('BSU', 'Boise St', 24, MWC),
+  VAN: C('VAN', 'Vanderbilt', null, SEC), IOWA: C('IOWA', 'Iowa', null, B1G), UNC: C('UNC', 'N Carolina', null, ACC), BAY: C('BAY', 'Baylor', null, B12),
+  KENT: C('KENT', 'Kent St', null, MAC), TOL: C('TOL', 'Toledo', null, MAC), BGSU: C('BGSU', 'Bowling Green', null, MAC), UNLV: C('UNLV', 'UNLV', null, MWC),
+  NICH: C('NICH', 'Nicholls', null, FCS), SDAK: C('SDAK', 'S Dakota St', null, FCS), UTEP: C('UTEP', 'UTEP', null, '12'), RICE: C('RICE', 'Rice', null, '151'),
+  KSU: C('KSU', 'Kansas St', null, B12), FSU: C('FSU', 'Florida St', null, ACC), WIS: C('WIS', 'Wisconsin', null, B1G), ARK: C('ARK', 'Arkansas', null, SEC),
+  NEB: C('NEB', 'Nebraska', null, B1G), PITT: C('PITT', 'Pitt', null, ACC), SMU: C('SMU', 'SMU', 16, ACC), TCU: C('TCU', 'TCU', null, B12),
+  AKR: C('AKR', 'Akron', null, MAC), BUFF: C('BUFF', 'Buffalo', null, MAC), UMASS: C('UMASS', 'UMass', null, IND), UCONN: C('UCONN', 'UConn', null, IND),
+};
+const CFB_NOW = Date.parse('2026-09-12T20:00:00Z'); // Saturday 4 PM ET, the noon games just finished
+const cfbSlot = { fri: '2026-09-12T00:00:00Z', noon: '2026-09-12T16:00:00Z', mid: '2026-09-12T19:30:00Z', late: '2026-09-12T23:30:00Z', night: '2026-09-13T02:30:00Z' };
+function cfbGame(id, away, home, slot, opts = {}) {
+  const a = cfbTeams[away], h = cfbTeams[home];
+  const kickoff = cfbSlot[slot];
+  const hours = (Date.parse(kickoff) - CFB_NOW) / H;
+  const state = opts.state ?? (hours <= -3.5 ? 'post' : hours <= 0 ? 'in' : 'pre');
+  const hs = opts.hs ?? 0, as = opts.as ?? 0;
+  return {
+    id, sport: 'cfb', season: 2026, season_type: 2, slate_key: '2026-2-03', slate_label: 'Week 3', kickoff,
+    home_abbr: h.abbr, home_name: h.name, home_logo: '', home_color: '', home_rank: h.rank, home_conf: h.conf,
+    away_abbr: a.abbr, away_name: a.name, away_logo: '', away_color: '', away_rank: a.rank, away_conf: a.conf,
+    home_score: hs, away_score: as, state,
+    status_detail: state === 'post' ? 'Final' : state === 'in' ? 'Q3 4:12' : '',
+    winner: state === 'post' ? (hs > as ? 'HOME' : as > hs ? 'AWAY' : 'TIE') : null,
+  };
+}
+export const CFB_BOARD = [
+  cfbGame('c01', 'TEX', 'UGA', 'late'), cfbGame('c02', 'ORE', 'OSU', 'late'), cfbGame('c03', 'ALA', 'TENN', 'mid'),
+  cfbGame('c04', 'MISS', 'LSU', 'night'), cfbGame('c05', 'CLEM', 'MIA', 'night'), cfbGame('c06', 'MICH', 'PSU', 'mid'),
+  cfbGame('c07', 'ND', 'VAN', 'noon', { hs: 10, as: 31 }), cfbGame('c08', 'USC', 'IOWA', 'late'), cfbGame('c09', 'ISU', 'BAY', 'mid'),
+  cfbGame('c10', 'BSU', 'UNLV', 'night'), cfbGame('c11', 'SMU', 'UNC', 'noon', { hs: 24, as: 27 }), cfbGame('c12', 'NICH', 'ARK', 'noon', { hs: 45, as: 3 }),
+  cfbGame('c13', 'SDAK', 'WIS', 'mid'), cfbGame('c14', 'KSU', 'TCU', 'late'), cfbGame('c15', 'FSU', 'PITT', 'mid'),
+  cfbGame('c16', 'NEB', 'KENT', 'noon', { hs: 7, as: 38 }), cfbGame('c17', 'TOL', 'BGSU', 'fri', { hs: 21, as: 28 }), cfbGame('c18', 'AKR', 'BUFF', 'mid'),
+  cfbGame('c19', 'UTEP', 'RICE', 'late'), cfbGame('c20', 'UMASS', 'UCONN', 'fri', { hs: 17, as: 14 }),
+];
+export { CFB_NOW };

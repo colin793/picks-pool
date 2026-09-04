@@ -6,7 +6,9 @@ import BoardView from '../components/BoardView';
 import AdminView from '../components/AdminView';
 import DevBump from '../components/DevBump';
 import { sport as sportOf } from '../../lib/scores/sports';
-import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, visiblePicks, EPL_GAMES, EPL_PICKS, EPL_NOW } from '../../lib/fixtures';
+import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, visiblePicks, EPL_GAMES, EPL_PICKS, EPL_NOW, CFB_BOARD, CFB_NOW } from '../../lib/fixtures';
+import { featuredGames } from '../../lib/featured';
+import { SPORTS } from '../../lib/scores/sports';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Design preview' };
@@ -46,9 +48,31 @@ export default function Preview({ searchParams }) {
         <Link href="/dev?view=board" className="underline">board</Link>
         <Link href="/dev?view=admin" className="underline">admin</Link>
         <Link href="/dev?view=epl" className="underline">premier league</Link>
-        {view !== 'epl' && view !== 'admin' && <DevBump />}
+        <Link href="/dev?view=featured" className="underline">featured</Link>
+        <Link href="/dev?view=cfb" className="underline">college picks</Link>
+        {['picks', 'board'].includes(view) && <DevBump />}
       </div>
-      {view === 'epl' ? (
+      {view === 'cfb' ? (
+        <>
+          <div className="mb-5">
+            <p className="eyebrow">College Football · 6 in this week · 15 of {CFB_BOARD.length} games featured</p>
+            <h1 className="h1 mt-1">Week 3 picks</h1>
+          </div>
+          <PicksForm leagueId={LEAGUE.id} season={2026} slate="2026-2-03"
+            games={featuredGames(CFB_BOARD, { n: SPORTS.cfb.featured, ...SPORTS.cfb.conferences })}
+            initialPicks={{ c01: 'HOME', c02: 'AWAY', c03: 'HOME', c07: 'AWAY', c11: 'HOME' }} initialTiebreaker={52} entry={myEntry}
+            unit="points" fixedNow={CFB_NOW} />
+        </>
+      ) : view === 'featured' ? (
+        <AdminView
+          user={{ id: me }} league={{ ...LEAGUE, name: 'NCAA Football Picks', sport: 'cfb' }} sport={SPORTS.cfb} names={NAMES}
+          inviteUrl="https://picks.example.com/join/cfbcfb11"
+          members={PLAYERS.map((p) => ({ user_id: p.id, profiles: p }))}
+          now={{ season: 2026, key: '2026-2-03', label: 'Week 3' }} feeRows={[]} owed={[]} paidOut={[]} clock={CFB_NOW}
+          slate={{ season: 2026, key: '2026-2-03', curated: true, board: CFB_BOARD,
+            games: featuredGames(CFB_BOARD, { n: SPORTS.cfb.featured, ...SPORTS.cfb.conferences }) }}
+        />
+      ) : view === 'epl' ? (
         <>
           <div className="mb-5">
             <p className="eyebrow">Premier League · draws are pickable</p>

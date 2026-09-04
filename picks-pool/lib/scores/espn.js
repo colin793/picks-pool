@@ -40,16 +40,26 @@ export function normalizeEvent(sportKey, ev, slate) {
     home_name: home.team?.shortDisplayName ?? home.team?.displayName ?? '',
     home_logo: home.team?.logo ?? '',
     home_color: hex(home.team?.color),
+    home_rank: rank(home),
+    home_conf: String(home.team?.conferenceId ?? ''),
     away_abbr: away.team?.abbreviation ?? '',
     away_name: away.team?.shortDisplayName ?? away.team?.displayName ?? '',
     away_logo: away.team?.logo ?? '',
     away_color: hex(away.team?.color),
+    away_rank: rank(away),
+    away_conf: String(away.team?.conferenceId ?? ''),
     home_score: hs,
     away_score: as,
     state,
     status_detail: ev.status?.type?.shortDetail ?? '',
     winner: state === 'post' ? (hs > as ? 'HOME' : as > hs ? 'AWAY' : 'TIE') : null,
   };
+}
+
+// AP Top 25 rank from ESPN's curatedRank (99 means unranked), else null.
+function rank(c) {
+  const r = Number(c?.curatedRank?.current);
+  return Number.isInteger(r) && r >= 1 && r <= 25 ? r : null;
 }
 
 function hex(c) {

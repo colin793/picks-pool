@@ -55,6 +55,25 @@ insert into games (id, sport, season, season_type, slate_key, slate_label, kicko
   ('g-next',   'nfl', 2026, 2, '2026-2-02', 'Week 2', now() + interval '9 days',  'KC',  'Chiefs',   'BUF', 'Bills',    'pre', 0, 0, null),
   ('g-cfb',    'cfb', 2026, 2, '2026-2-02', 'Week 2', now() + interval '2 days',  'UGA', 'Bulldogs', 'BAMA', 'Crimson Tide', 'pre', 0, 0, null);
 
+-- A college league the commissioner also runs, with a curated two-game slate
+-- out of three on the board. Alice is in it, Bob is not.
+insert into leagues (id, name, sport, commissioner, invite_code) values
+  ('10000000-0000-0000-0000-000000000007', 'College League', 'cfb', '00000000-0000-0000-0000-000000000001', 'cfbcfb11');
+insert into memberships (league_id, user_id) values
+  ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000001'),
+  ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002');
+insert into games (id, sport, season, season_type, slate_key, slate_label, kickoff, home_abbr, home_name, away_abbr, away_name, state, home_rank, away_rank) values
+  ('c-in-1',  'cfb', 2026, 2, '2026-2-02', 'Week 2', now() + interval '1 day', 'UGA', 'Bulldogs', 'CLEM', 'Tigers', 'pre', 1, 4),
+  ('c-in-2',  'cfb', 2026, 2, '2026-2-02', 'Week 2', now() + interval '4 days', 'OSU', 'Buckeyes', 'MICH', 'Wolverines', 'pre', 2, 3),
+  ('c-out',   'cfb', 2026, 2, '2026-2-02', 'Week 2', now() + interval '5 days', 'KENT', 'Golden Flashes', 'AKR', 'Zips', 'pre', null, null),
+  ('c-started', 'cfb', 2026, 2, '2026-2-02', 'Week 2', now() - interval '1 hour', 'LSU', 'Tigers', 'ARK', 'Razorbacks', 'in', 5, null);
+insert into slate_games (league_id, season, slate_key, game_id) values
+  ('10000000-0000-0000-0000-000000000007', 2026, '2026-2-02', 'c-in-1'),
+  ('10000000-0000-0000-0000-000000000007', 2026, '2026-2-02', 'c-in-2'),
+  ('10000000-0000-0000-0000-000000000007', 2026, '2026-2-02', 'c-started');
+insert into entries (id, league_id, user_id, season, slate_key, tiebreaker) values
+  ('20000000-0000-0000-0000-000000000007', '10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 2026, '2026-2-02', 50);
+
 -- Alice has an entry with a pick already locked; Bob has an open entry.
 insert into entries (id, league_id, user_id, season, slate_key, tiebreaker) values
   ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 2026, '2026-2-01', 44),
@@ -298,9 +317,65 @@ do $$ declare ok boolean; declare n int; begin
   perform pg_temp.check('deleting the league removes its entries', n = 0);
 end $$;
 
+-- Featured slates: who sees the set, who edits it, and what it does to picks.
+do $$ declare n int; ok boolean; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice, member
+  select count(*) into n from slate_games where league_id = '10000000-0000-0000-0000-000000000007';
+  perform pg_temp.check('a member reads the curated slate', n = 3);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000003'); -- bob, not in the college league
+  select count(*) into n from slate_games where league_id = '10000000-0000-0000-0000-000000000007';
+  perform pg_temp.check('a non-member cannot see another league''s slate', n = 0);
+
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  begin
+    insert into picks (entry_id, game_id, picked) values ('20000000-0000-0000-0000-000000000007', 'c-in-1', 'HOME'); ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('a pick on a featured game is accepted', ok);
+  begin
+    insert into picks (entry_id, game_id, picked) values ('20000000-0000-0000-0000-000000000007', 'c-out', 'HOME'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a pick on a game outside the curated slate is refused', ok);
+  begin
+    insert into slate_games (league_id, season, slate_key, game_id) values ('10000000-0000-0000-0000-000000000007', 2026, '2026-2-02', 'c-out'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a player cannot add a game to the slate', ok);
+  delete from slate_games where league_id = '10000000-0000-0000-0000-000000000007' and game_id = 'c-in-2';
+  get diagnostics n = row_count;
+  perform pg_temp.check('a player cannot remove a game from the slate', n = 0);
+
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- commissioner
+  begin
+    insert into slate_games (league_id, season, slate_key, game_id) values ('10000000-0000-0000-0000-000000000007', 2026, '2026-2-02', 'c-out'); ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('the commissioner can swap a game in', ok);
+  delete from slate_games where league_id = '10000000-0000-0000-0000-000000000007' and game_id = 'c-in-2';
+  get diagnostics n = row_count;
+  perform pg_temp.check('the commissioner can swap an unstarted game out', n = 1);
+  delete from slate_games where league_id = '10000000-0000-0000-0000-000000000007' and game_id = 'c-started';
+  get diagnostics n = row_count;
+  perform pg_temp.check('nobody can remove a game that has kicked off', n = 0);
+  perform pg_temp.as_admin();
+end $$;
+
+-- The tiebreaker locks at the last *featured* kickoff, not the board's.
+do $$ declare t timestamptz; begin
+  select slate_lock_at('10000000-0000-0000-0000-000000000007', 2026, '2026-2-02') into t;
+  -- c-out (5 days) is now in the slate after the swap above; c-in-2 (4 days) is out.
+  perform pg_temp.check('slate lock follows the curated set', t > now() + interval '4 days 23 hours');
+  delete from slate_games where league_id = '10000000-0000-0000-0000-000000000007' and game_id = 'c-out';
+  select slate_lock_at('10000000-0000-0000-0000-000000000007', 2026, '2026-2-02') into t;
+  perform pg_temp.check('...and moves when the set changes', t < now() + interval '1 day 1 hour');
+  -- An NFL league has no curated set: every game counts, lock is the board's last
+  -- kickoff. (The stranger's league: the test league was deleted a few blocks up.)
+  select slate_lock_at('10000000-0000-0000-0000-000000000002', 2026, '2026-2-01') into t;
+  perform pg_temp.check('a league with no curated set locks at the board''s last game',
+    t = (select max(kickoff) from games where sport = 'nfl' and season = 2026 and slate_key = '2026-2-01'));
+end $$;
+
 -- ---------- summary ----------
 do $$ declare total int; declare failed int; begin
-  select count(*), count(*) filter (where not ok) into total, failed from _t;
+  -- `ok is not true` so a NULL (a comparison against a missing row) counts as a failure.
+  select count(*), count(*) filter (where ok is not true) into total, failed from _t;
   if failed > 0 then
     raise exception 'policy tests: % of % FAILED', failed, total;
   end if;
