@@ -111,7 +111,7 @@ npm run dev
 Checks that need no Supabase at all:
 
 ```
-npm run check        # scoring logic self-test (lib/stats.test.mjs)
+npm run check        # scoring logic and slate keys (lib/stats.test.mjs, lib/scores/slates.test.mjs)
 npm run check:espn   # hit ESPN for real and print what a sync would write (nfl | cfb | nba | nhl | mlb | epl)
 npm run check:db     # apply schema.sql to a local Postgres and run 34 row-level security tests
 ```
