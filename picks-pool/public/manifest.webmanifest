@@ -1,0 +1,13 @@
+{
+  "name": "Picks Pool",
+  "short_name": "Picks",
+  "description": "Pick winners with your friends. Most correct takes the pot.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "icons": [
+    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

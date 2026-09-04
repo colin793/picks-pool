@@ -1,0 +1,16 @@
+# dependencies
+node_modules/
+# next.js
+.next/
+out/
+# env: never commit keys
+.env
+.env.*
+!.env.example
+# vercel / os / editor
+.vercel
+.DS_Store
+*.log
+npm-debug.log*
+# local test database
+.pgdata/
