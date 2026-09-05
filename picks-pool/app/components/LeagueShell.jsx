@@ -54,7 +54,7 @@ export default function LeagueShell({ league, sport, slate, profile, isCommish, 
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-5 lg:px-8 lg:pb-10 lg:pt-8">
+      <main className="mx-auto w-full max-w-5xl xl:max-w-[1400px] 2xl:max-w-[1800px] min-[2200px]:max-w-[2400px] px-4 pb-24 pt-5 lg:px-8 lg:pb-10 lg:pt-8">
         <InstallPrompt />
         <PushPrompt publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY} demo={demo} />
         {children}
