@@ -272,6 +272,24 @@ export async function syncNow(leagueId) {
   revalidatePath(`/l/${leagueId}`, 'layout');
 }
 
+// ---------- reactions ----------
+
+// One reaction per person per pick: tapping the same emoji again removes it,
+// a different one replaces it. RLS: members, own row, kicked-off games only.
+export async function react(leagueId, entryId, gameId, emoji) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  const db = sb();
+  const key = { entry_id: entryId, game_id: gameId, user_id: user.id };
+  const { data: existing } = await db.from('reactions').select('emoji').match(key).maybeSingle();
+  if (existing?.emoji === emoji) await db.from('reactions').delete().match(key);
+  else {
+    const { error } = await db.from('reactions').upsert({ league_id: leagueId, ...key, emoji }, { onConflict: 'entry_id,game_id,user_id' });
+    if (error) throw new Error(error.message);
+  }
+  revalidatePath(`/l/${leagueId}/board`);
+}
+
 // ---------- profile ----------
 
 export async function saveProfile(formData) {

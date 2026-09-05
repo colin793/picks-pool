@@ -6,7 +6,7 @@ import ShareButton from './ShareButton';
 import Projections from './Projections';
 
 // The "This week" page body. Server page and /dev preview both render this.
-export default function BoardView({ league, sport, label, isCurrent, slates, slateKey, games, entries, picks, names, me, now = Date.now(), shareUrl = null }) {
+export default function BoardView({ league, sport, label, isCurrent, slates, slateKey, games, entries, picks, names, me, now = Date.now(), shareUrl = null, reactions = [], demo = false }) {
   const scoring = league.scoring ?? 'straight';
   const { rows, complete, winners, actualTotal, lastGame, live, finals } = slateResults(games, entries, picks, { scoring });
   const { pot, share } = potFor(entries, league.entry_fee_cents, winners);
@@ -74,8 +74,8 @@ export default function BoardView({ league, sport, label, isCurrent, slates, sla
       {rows.length > 0 && games.length > 0 && (
         <section className="card">
           <h2 className="h2 mb-2">Everyone&rsquo;s picks</h2>
-          <PickGrid games={games} rows={rows} picks={picks} names={names} me={me} now={now} draws={Boolean(sport.draws)} homeFirst={Boolean(sport.homeFirst)} scoring={scoring} />
-          <p className="mt-3 text-xs text-muted">Each column reveals at that game&rsquo;s kickoff. A dot means hidden until then, a dash means no pick.</p>
+          <PickGrid games={games} rows={rows} picks={picks} names={names} me={me} now={now} draws={Boolean(sport.draws)} homeFirst={Boolean(sport.homeFirst)} scoring={scoring} reactions={reactions} leagueId={league.id} demo={demo} />
+          <p className="mt-3 text-xs text-muted">Each column reveals at that game&rsquo;s kickoff. A dot means hidden until then, a dash means no pick. Tap a revealed pick to react.</p>
         </section>
       )}
     </>

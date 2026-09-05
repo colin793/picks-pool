@@ -120,7 +120,11 @@ export default function Preview({ searchParams }) {
         <BoardView
           league={LEAGUE} sport={sport} label={slate.label} isCurrent slates={[{ key: '2026-2-01', label: 'Week 1' }, { key: slate.key, label: 'Demo Week' }]}
           slateKey={slate.key} games={games} entries={ENTRIES} picks={picks} names={NAMES} me={me} now={NOW}
-          shareUrl="/dev/share"
+          shareUrl="/dev/share" demo
+          reactions={[
+            { entry_id: 'e-u-kevin', game_id: 'f3', user_id: 'u-colin', emoji: '💀' }, { entry_id: 'e-u-kevin', game_id: 'f3', user_id: 'u-sam', emoji: '🤡' },
+            { entry_id: 'e-u-colin', game_id: 'f2', user_id: 'u-kevin', emoji: '🔥' }, { entry_id: 'e-u-brian', game_id: 'f1', user_id: 'u-jess', emoji: '👏' },
+          ]}
         />
       ) : (
         <>

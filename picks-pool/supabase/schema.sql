@@ -201,6 +201,18 @@ create table public.messages (
   created_at timestamptz not null default now()
 );
 create index messages_league_idx on public.messages (league_id, created_at desc);
+-- Reactions on revealed picks: one per person per pick, four emoji, only
+-- once the game has kicked off (before that the pick is not even visible).
+create table public.reactions (
+  league_id uuid not null references public.leagues on delete cascade,
+  entry_id uuid not null references public.entries on delete cascade,
+  game_id text not null references public.games,
+  user_id uuid not null references public.profiles on delete cascade,
+  emoji text not null check (emoji in ('🔥', '💀', '🤡', '👏')),
+  created_at timestamptz not null default now(),
+  primary key (entry_id, game_id, user_id)
+);
+create index reactions_league_idx on public.reactions (league_id);
 
 -- ---------- helper functions ----------
 -- security definer so policies can consult tables the caller may not read.
@@ -337,6 +349,7 @@ alter table public.recaps_sent enable row level security;
 alter table public.push_subscriptions enable row level security;
 alter table public.push_sent enable row level security;
 alter table public.messages enable row level security;
+alter table public.reactions enable row level security;
 
 -- reference data: read-only for anyone signed in.
 create policy sports_read on public.sports for select to authenticated using (true);
@@ -430,6 +443,17 @@ create policy messages_insert on public.messages for insert to authenticated
   with check (user_id = auth.uid() and is_member(league_id));
 create policy messages_delete on public.messages for delete to authenticated
   using (user_id = auth.uid() or is_commissioner(league_id));
+-- reactions: the league sees them; you write your own, on kicked-off games only.
+create policy reactions_read on public.reactions for select to authenticated
+  using (is_member(league_id));
+create policy reactions_write on public.reactions for insert to authenticated
+  with check (user_id = auth.uid() and is_member(league_id)
+    and exists (select 1 from entries e where e.id = entry_id and e.league_id = reactions.league_id)
+    and exists (select 1 from games g where g.id = game_id and g.kickoff <= now()));
+create policy reactions_update on public.reactions for update to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy reactions_delete on public.reactions for delete to authenticated
+  using (user_id = auth.uid());
 
 -- push subscriptions: your own devices, nothing else.
 create policy push_subscriptions_read on public.push_subscriptions for select to authenticated
