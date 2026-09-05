@@ -417,6 +417,32 @@ do $$ declare ok boolean; begin
   perform pg_temp.as_admin();
 end $$;
 
+-- Reactions: on kicked-off picks only, your own, visible to the league.
+-- (The college league: the NFL test league was deleted a few blocks up.)
+do $$ declare n int; ok boolean; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- the commissioner reacts to alice's pick on a started game
+  begin
+    insert into reactions (league_id, entry_id, game_id, user_id, emoji) values
+      ('10000000-0000-0000-0000-000000000007', '20000000-0000-0000-0000-000000000007', 'c-started', '00000000-0000-0000-0000-000000000001', '🔥'); ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('a member can react to a revealed pick', ok);
+  begin
+    insert into reactions (league_id, entry_id, game_id, user_id, emoji) values
+      ('10000000-0000-0000-0000-000000000007', '20000000-0000-0000-0000-000000000007', 'c-in-1', '00000000-0000-0000-0000-000000000001', '💀'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('no reacting to a pick before its game kicks off', ok);
+  begin
+    insert into reactions (league_id, entry_id, game_id, user_id, emoji) values
+      ('10000000-0000-0000-0000-000000000007', '20000000-0000-0000-0000-000000000007', 'c-started', '00000000-0000-0000-0000-000000000002', '🍕'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('only the four emoji are allowed, and only as yourself', ok);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice sees the commissioner's reaction
+  select count(*) into n from reactions; perform pg_temp.check('a member sees the league''s reactions', n = 1);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000009'); -- stranger
+  select count(*) into n from reactions; perform pg_temp.check('a stranger sees no reactions', n = 0);
+  perform pg_temp.as_admin();
+end $$;
+
 -- ---------- summary ----------
 do $$ declare total int; declare failed int; begin
   -- `ok is not true` so a NULL (a comparison against a missing row) counts as a failure.

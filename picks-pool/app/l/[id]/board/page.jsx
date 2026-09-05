@@ -15,6 +15,10 @@ export default async function Board({ params, searchParams }) {
   const key = slates.some((s) => s.key === searchParams?.slate) ? searchParams.slate : now.key;
   const label = slates.find((s) => s.key === key)?.label ?? now.label;
   const data = await loadSlate(db, league, now.season, key);
+  const entryIds = data.entries.map((e) => e.id);
+  const { data: reactions } = entryIds.length
+    ? await db.from('reactions').select('entry_id, game_id, user_id, emoji').in('entry_id', entryIds) // RLS: members
+    : { data: [] };
 
   return (
     <>
@@ -23,6 +27,7 @@ export default async function Board({ params, searchParams }) {
         league={league} sport={sport} label={label} isCurrent={key === now.key}
         slates={slates} slateKey={key} me={user.id} {...data}
         shareUrl={`/l/${league.id}/share?slate=${encodeURIComponent(key)}`}
+        reactions={reactions ?? []}
       />
     </>
   );

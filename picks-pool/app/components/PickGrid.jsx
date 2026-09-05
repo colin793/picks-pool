@@ -1,10 +1,20 @@
 import { FlashPill } from './Flash';
 import { outcome, ahead as aheadOf } from '../../lib/stats';
+import ReactCell from './ReactCell';
 
 // Everyone's picks, one row per player, one column per game. RLS decides
 // what is visible: your own picks always, others' once the game kicks off,
 // so a hidden pick is simply absent from `picks`.
-export default function PickGrid({ games, rows, picks, names, me, now = Date.now(), draws = false, homeFirst = false, scoring = 'straight' }) {
+// reactions: rows of { entry_id, game_id, user_id, emoji } the viewer may see.
+export default function PickGrid({ games, rows, picks, names, me, now = Date.now(), draws = false, homeFirst = false, scoring = 'straight', reactions = [], leagueId = null, demo = false }) {
+  const rx = new Map(); // `${entry}:${game}` -> { counts, mine }
+  for (const r of reactions) {
+    const k = `${r.entry_id}:${r.game_id}`;
+    if (!rx.has(k)) rx.set(k, { counts: {}, mine: null });
+    const cell = rx.get(k);
+    cell.counts[r.emoji] = (cell.counts[r.emoji] ?? 0) + 1;
+    if (r.user_id === me) cell.mine = r.emoji;
+  }
   const byEntry = new Map();
   for (const p of picks) {
     if (!byEntry.has(p.entry_id)) byEntry.set(p.entry_id, new Map());
@@ -66,6 +76,7 @@ export default function PickGrid({ games, rows, picks, names, me, now = Date.now
                       >
                         {abbr}
                       </FlashPill>
+                      {started && <ReactCell leagueId={leagueId} entryId={r.id} gameId={g.id} demo={demo} {...(rx.get(`${r.id}:${g.id}`) ?? {})} />}
                     </td>
                   );
                 })}

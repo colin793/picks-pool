@@ -5,7 +5,14 @@ import { sport as sportOf } from '../../../lib/scores/sports';
 import { money } from '../../../lib/stats';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Join' };
+
+// The invite link's preview in a text thread: the league's name and sport.
+export async function generateMetadata({ params }) {
+  const { data: league } = await admin().from('leagues').select('name, sport').eq('invite_code', params.code.toLowerCase()).maybeSingle();
+  const title = league ? `Join ${league.name}` : 'Join';
+  const description = league ? `${sportOf(league.sport).name} picks with friends. Most correct takes the pot.` : 'Pick winners with your friends.';
+  return { title, description, openGraph: { title, description }, twitter: { card: 'summary_large_image', title, description } };
+}
 
 export default async function Join({ params, searchParams }) {
   const code = params.code.toLowerCase();
