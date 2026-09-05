@@ -11,6 +11,7 @@ export default async function Admin({ params }) {
   const { user, league, db, isCommish, sport } = await leagueContext(params.id);
   if (!isCommish) redirect(`/l/${params.id}`);
   const now = await currentSlate(league);
+  const { data: state } = await db.from('sport_state').select('last_sync').eq('sport', league.sport).maybeSingle();
 
   const { data: members } = await db
     .from('memberships').select('user_id, created_at, profiles(id, display_name, emoji, email, venmo_handle)')
@@ -53,6 +54,6 @@ export default async function Admin({ params }) {
 
   return (
     <AdminView user={user} league={league} sport={sport} members={members ?? []} names={names}
-      inviteUrl={inviteUrl} now={now} feeRows={feeRows} owed={owed} paidOut={paidOut} slate={slate} hasEntries={hasEntries} />
+      inviteUrl={inviteUrl} now={now} feeRows={feeRows} owed={owed} paidOut={paidOut} slate={slate} hasEntries={hasEntries} lastSync={state?.last_sync ?? null} />
   );
 }
