@@ -6,6 +6,7 @@ import BoardView from '../components/BoardView';
 import AdminView from '../components/AdminView';
 import DevBump from '../components/DevBump';
 import PushToggle from '../components/PushToggle';
+import ChatView from '../components/ChatView';
 import { sport as sportOf } from '../../lib/scores/sports';
 import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, visiblePicks, EPL_GAMES, EPL_PICKS, EPL_NOW, CFB_BOARD, CFB_NOW } from '../../lib/fixtures';
 import { featuredGames } from '../../lib/featured';
@@ -53,9 +54,16 @@ export default function Preview({ searchParams }) {
         <Link href="/dev?view=cfb" className="underline">college picks</Link>
         <Link href="/dev?view=notify" className="underline">notifications</Link>
         <Link href="/dev?view=spread" className="underline">spread</Link>
+        <Link href="/dev?view=chat" className="underline">chat</Link>
         {['picks', 'board'].includes(view) && <DevBump />}
       </div>
-      {view === 'spread' ? (
+      {view === 'chat' ? (
+        <ChatView leagueId={LEAGUE.id} me={me} isCommish names={NAMES} demo messages={[
+          { id: 'm1', user_id: 'u-kevin', body: 'who took the Jets lol', created_at: new Date(NOW - 3600_000).toISOString() },
+          { id: 'm2', user_id: 'u-colin', body: 'me. and I would do it again', created_at: new Date(NOW - 3500_000).toISOString() },
+          { id: 'm3', user_id: 'u-sam', body: 'GB in the red zone, Colin is sweating', created_at: new Date(NOW - 120_000).toISOString() },
+        ]} />
+      ) : view === 'spread' ? (
         <>
           <div className="mb-5">
             <p className="eyebrow">NFL · against the spread</p>

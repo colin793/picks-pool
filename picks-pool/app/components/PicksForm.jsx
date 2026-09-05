@@ -59,7 +59,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
 
   const status = msg
     ? <span className={msg.kind === 'ok' ? 'text-good' : msg.kind === 'warn' ? 'text-warn' : 'text-bad'}>{msg.text}</span>
-    : `${pickedOpen} of ${openGames.length} open picked. Games lock at kickoff.${vegas != null ? ` Vegas says ${vegas} on the tiebreaker.` : ''}`;
+    : <>{pickedOpen} of {openGames.length} open picked. Games lock at kickoff.{vegas != null && <span className="lg:hidden"> Vegas says {vegas} on the tiebreaker.</span>}</>;
 
   function submit() {
     if (!entered && Object.keys(picks).length === 0) {
@@ -95,7 +95,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
       {active.map(([day, gs]) => (
         <section key={day}>
           <h2 className="eyebrow mb-2">{day}</h2>
-          <div className="grid gap-2.5 md:grid-cols-2">
+          <div className="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(min(100%,330px),1fr))]">
             {gs.map((g) => (
               <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} scoring={scoring}
                 onPick={(side) => setPicks((p) => ({ ...p, [g.id]: side }))} />
@@ -117,7 +117,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
               <span className="ml-auto text-xs font-semibold text-ink2">{open ? 'Hide' : 'Show'}</span>
             </button>
             {open && (
-              <div className="mt-2 grid gap-2.5 md:grid-cols-2">
+              <div className="mt-2 grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(min(100%,330px),1fr))]">
                 {gs.map((g) => (
                   <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} scoring={scoring} />
                 ))}
@@ -141,7 +141,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
           <div className="h-full bg-accent transition-[width] duration-300"
             style={{ width: openGames.length ? `${Math.round((pickedOpen / openGames.length) * 100)}%` : '0%' }} />
         </div>
-        <div className="mx-auto max-w-5xl px-4 py-2.5 lg:px-8 lg:py-3">
+        <div className="mx-auto max-w-5xl xl:max-w-[1400px] 2xl:max-w-[1800px] min-[2200px]:max-w-[2400px] px-4 py-2.5 lg:px-8 lg:py-3">
           <div className="flex items-center gap-3">
             <label className="flex min-w-0 items-center gap-2">
               <span className="shrink-0 text-xs font-semibold text-ink2">Tiebreaker</span>

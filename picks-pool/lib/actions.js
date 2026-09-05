@@ -243,6 +243,35 @@ export async function removePushSubscription(endpoint) {
   await sb().from('push_subscriptions').delete().eq('endpoint', String(endpoint)); // RLS: own rows
 }
 
+// ---------- chat ----------
+
+export async function postMessage(leagueId, formData) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  const body = String(formData.get('body') || '').trim().slice(0, 500);
+  if (!body) return;
+  const { error } = await sb().from('messages').insert({ league_id: leagueId, user_id: user.id, body }); // RLS: members
+  if (error) throw new Error(error.message);
+  revalidatePath(`/l/${leagueId}/chat`);
+}
+
+export async function deleteMessage(leagueId, id) {
+  await sb().from('messages').delete().eq('id', id); // RLS: own, or commissioner
+  revalidatePath(`/l/${leagueId}/chat`);
+}
+
+// ---------- scores (commissioner) ----------
+
+// Force a score sync for this league's sport, throttle or no throttle.
+export async function syncNow(leagueId) {
+  const { data: league } = await sb().from('leagues').select('id, sport, commissioner').eq('id', leagueId).maybeSingle(); // RLS: members
+  const user = await currentUser();
+  if (!league || !user || league.commissioner !== user.id) return;
+  const { syncSport } = await import('./scores/sync.js');
+  await syncSport(league.sport, true);
+  revalidatePath(`/l/${leagueId}`, 'layout');
+}
+
 // ---------- reactions ----------
 
 // One reaction per person per pick: tapping the same emoji again removes it,
