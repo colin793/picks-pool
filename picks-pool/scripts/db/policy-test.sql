@@ -434,6 +434,9 @@ do $$ declare n int; ok boolean; begin
   perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- commissioner
   delete from messages where body = 'who has UGA'; get diagnostics n = row_count;
   perform pg_temp.check('the commissioner can delete a message', n = 1);
+  perform pg_temp.as_admin();
+end $$;
+
 -- Reactions: on kicked-off picks only, your own, visible to the league.
 -- (The college league: the NFL test league was deleted a few blocks up.)
 do $$ declare n int; ok boolean; begin
