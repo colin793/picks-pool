@@ -232,6 +232,7 @@ export default function AdminView({ user, league, sport, members, names, inviteU
               <p className="mt-1 text-xs text-muted">All off to start. The first two change how weeks score, so settle them with the room before flipping them mid-season.</p>
               <label className="mt-2 flex items-center gap-2 text-sm"><input type="checkbox" name="lock_of_week" defaultChecked={Boolean(league.lock_of_week)} /> Lock of the week: one pick a week counts double</label>
               <label className="mt-1 flex items-center gap-2 text-sm"><input type="checkbox" name="duels" defaultChecked={Boolean(league.duels)} /> Duels: a head-to-head rival every week, everyone in turn</label>
+              <label className="mt-1 flex items-center gap-2 text-sm"><input type="checkbox" name="calls" defaultChecked={league.calls !== false} /> Call it: graded predictions in Chat (changes no scores)</label>
               <label className="label">Loser&rsquo;s duty (blank for none)</label>
               <input className="input" type="text" name="duty" maxLength={120} defaultValue={league.duty ?? ''} placeholder="Last place at the end of the month buys the wings" />
             </>

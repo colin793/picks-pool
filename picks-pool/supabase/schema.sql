@@ -57,6 +57,8 @@ create table public.leagues (
   lock_of_week boolean not null default false,
   duels boolean not null default false,
   duty text not null default '',
+  -- Call it: graded predictions in chat. On by default; changes no scores.
+  calls boolean not null default true,
   recap_enabled boolean not null default true,
   reminders_enabled boolean not null default true,
   commissioner uuid not null references public.profiles(id),
@@ -264,6 +266,21 @@ create table public.survivor_picks (
 );
 create index survivor_picks_league_idx on public.survivor_picks (league_id, season);
 
+-- Call it: "KC by 10", pinned in the room and graded when the game goes
+-- final. Any member, any open game on the league's slate; delete your own
+-- before kickoff, the commissioner any time.
+create table public.calls (
+  id uuid primary key default gen_random_uuid(),
+  league_id uuid not null references public.leagues on delete cascade,
+  user_id uuid not null references public.profiles on delete cascade,
+  game_id text not null references public.games,
+  side text not null check (side in ('HOME', 'AWAY')),
+  margin int check (margin is null or (margin >= 1 and margin <= 99)),
+  body text not null default '' check (char_length(body) <= 140),
+  created_at timestamptz not null default now()
+);
+create index calls_league_idx on public.calls (league_id, created_at desc);
+
 -- ---------- helper functions ----------
 -- security definer so policies can consult tables the caller may not read.
 
@@ -349,6 +366,18 @@ language sql security definer set search_path = public stable as $$
       and gm.sport = lg.sport and gm.season = s and gm.slate_key = k
       and in_slate(l, s, k, g)
       and side in ('HOME', 'AWAY')
+  );
+$$;
+
+-- Call it: may the caller make a call on this game? Member, calls on, game
+-- not started, the league's sport, in the league's slate.
+create function public.call_open(l uuid, g text) returns boolean
+language sql security definer set search_path = public stable as $$
+  select exists (
+    select 1 from leagues lg join games gm on gm.id = g
+    where lg.id = l and lg.calls and is_member(l)
+      and gm.kickoff > now() and gm.sport = lg.sport
+      and in_slate(l, gm.season, gm.slate_key, g)
   );
 $$;
 
@@ -470,6 +499,7 @@ alter table public.messages enable row level security;
 alter table public.reactions enable row level security;
 alter table public.survivor_entries enable row level security;
 alter table public.survivor_picks enable row level security;
+alter table public.calls enable row level security;
 
 -- reference data: read-only for anyone signed in.
 create policy sports_read on public.sports for select to authenticated using (true);
@@ -601,6 +631,14 @@ create policy survivor_picks_update on public.survivor_picks for update to authe
   with check (user_id = auth.uid() and survivor_pick_open(league_id, season, slate_key, game_id, picked));
 create policy survivor_picks_delete on public.survivor_picks for delete to authenticated
   using (user_id = auth.uid() and exists (select 1 from games g where g.id = game_id and g.kickoff > now()));
+
+-- calls: the room reads them; you post as yourself on an open game; you
+-- take back your own before kickoff, the commissioner any time.
+create policy calls_read on public.calls for select to authenticated using (is_member(league_id));
+create policy calls_insert on public.calls for insert to authenticated
+  with check (user_id = auth.uid() and call_open(league_id, game_id));
+create policy calls_delete on public.calls for delete to authenticated
+  using ((user_id = auth.uid() and exists (select 1 from games g where g.id = game_id and g.kickoff > now())) or is_commissioner(league_id));
 
 -- push subscriptions: your own devices, nothing else.
 create policy push_subscriptions_read on public.push_subscriptions for select to authenticated

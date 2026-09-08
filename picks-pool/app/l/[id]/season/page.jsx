@@ -1,6 +1,7 @@
 import { leagueContext, currentSlate, loadSeason } from '../../../../lib/league';
 import { seasonStats, slateResults } from '../../../../lib/stats';
 import { duelSeason, recordText } from '../../../../lib/duels';
+import { callRecords } from '../../../../lib/calls';
 import SeasonTable from '../../../components/SeasonTable';
 
 export const dynamic = 'force-dynamic';
@@ -35,6 +36,14 @@ export default async function Season({ params }) {
     emoji: names.get(s.user_id)?.emoji ?? '',
     ...(duels ? { duels: recordText(duels.get(s.user_id)), duelWins: duels.get(s.user_id)?.won ?? 0 } : {}),
   }));
+  // Call it: hit rate per person over the season's graded calls.
+  let receipts = [];
+  if (league.calls) {
+    const { data: calls } = await db.from('calls').select('user_id, game_id, side, margin').eq('league_id', league.id); // RLS: members
+    receipts = [...callRecords(calls ?? [], games).entries()]
+      .map(([user_id, r]) => ({ user_id, ...r, name: names.get(user_id)?.display_name ?? 'Player', emoji: names.get(user_id)?.emoji ?? '' }))
+      .sort((a, b) => b.hits - a.hits || a.total - b.total);
+  }
   // The loser's duty: whoever sits last by wins, then right picks.
   const onHook = league.duty && stats.length > 1 ? [...stats].sort((a, b) => a.wins - b.wins || a.correct - b.correct)[0] : null;
   const slatesPlayed = new Set(entries.map((e) => e.slate_key)).size;
@@ -56,8 +65,23 @@ export default async function Season({ params }) {
         <SeasonTable rows={stats} me={user.id} lock={lock} duels={Boolean(duels)} />
         <p className="mt-3 text-xs text-muted">
           Tap a column to sort. Average finish counts only completed slates a player entered; ties share the better rank. Won is money the commissioner has marked as sent.
+          {lock ? ' Pts adds one for each lock that hit.' : ''}{duels ? ' Duels is the head-to-head record, wins-losses-ties.' : ''}
         </p>
       </section>
+      {receipts.length > 0 && (
+        <section className="card mt-4">
+          <h2 className="h2 mb-2">Receipts</h2>
+          <ul className="grid gap-1 sm:grid-cols-2">
+            {receipts.map((r) => (
+              <li key={r.user_id} className={`flex items-center gap-2 border-t border-line py-1.5 text-sm ${r.user_id === user.id ? 'font-semibold' : ''}`}>
+                <span>{r.emoji}</span><span className="flex-1 truncate">{r.name}</span>
+                <span className="num">{r.hits} of {r.total}</span><span className="text-xs text-muted">calls hit</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-muted">Calls made in Chat, graded when the game went final. Talk is cheap; this is the invoice.</p>
+        </section>
+      )}
     </>
   );
 }

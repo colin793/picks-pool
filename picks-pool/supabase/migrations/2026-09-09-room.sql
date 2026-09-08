@@ -87,3 +87,44 @@ select e.id, e.league_id, e.user_id, e.season, e.slate_key, e.paid, e.created_at
     else null
   end as lock_game_id
 from public.entries e;
+
+-- ---------- Call it: graded predictions in chat ----------
+-- "KC by 10." Pinned in the room, graded when the game goes final. Any
+-- member, any open game on the league's slate; delete your own before
+-- kickoff, the commissioner any time. The switch is on by default: it
+-- changes no scores, only the trash talk.
+alter table public.leagues add column if not exists calls boolean not null default true;
+
+create table if not exists public.calls (
+  id uuid primary key default gen_random_uuid(),
+  league_id uuid not null references public.leagues on delete cascade,
+  user_id uuid not null references public.profiles on delete cascade,
+  game_id text not null references public.games,
+  side text not null check (side in ('HOME', 'AWAY')),
+  margin int check (margin is null or (margin >= 1 and margin <= 99)),
+  body text not null default '' check (char_length(body) <= 140),
+  created_at timestamptz not null default now()
+);
+create index if not exists calls_league_idx on public.calls (league_id, created_at desc);
+
+-- May the caller make a call on this game? Member, calls on, game not
+-- started, the league's sport, in the league's slate.
+create or replace function public.call_open(l uuid, g text) returns boolean
+language sql security definer set search_path = public stable as $$
+  select exists (
+    select 1 from leagues lg join games gm on gm.id = g
+    where lg.id = l and lg.calls and is_member(l)
+      and gm.kickoff > now() and gm.sport = lg.sport
+      and in_slate(l, gm.season, gm.slate_key, g)
+  );
+$$;
+
+alter table public.calls enable row level security;
+drop policy if exists calls_read on public.calls;
+drop policy if exists calls_insert on public.calls;
+drop policy if exists calls_delete on public.calls;
+create policy calls_read on public.calls for select to authenticated using (is_member(league_id));
+create policy calls_insert on public.calls for insert to authenticated
+  with check (user_id = auth.uid() and call_open(league_id, game_id));
+create policy calls_delete on public.calls for delete to authenticated
+  using ((user_id = auth.uid() and exists (select 1 from games g where g.id = game_id and g.kickoff > now())) or is_commissioner(league_id));

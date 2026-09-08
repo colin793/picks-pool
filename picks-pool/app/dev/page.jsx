@@ -99,7 +99,11 @@ export default function Preview({ searchParams }) {
         <SurvivorView league={{ ...LEAGUE, survivor: true, survivor_fee_cents: 2000 }} sport={sport} slate={slate} me={NAMES.has(searchParams?.as) ? searchParams.as : me} now={NOW} fixedNow={NOW} demo base="/dev"
           games={[...SURVIVOR_PREV, ...games]} entries={SURVIVOR_ENTRIES} picks={visibleSurvivorPicks(NAMES.has(searchParams?.as) ? searchParams.as : me, NOW)} names={NAMES} />
       ) : view === 'chat' ? (
-        <ChatView leagueId={LEAGUE.id} me={me} isCommish names={NAMES} demo messages={[
+        <ChatView leagueId={LEAGUE.id} me={me} isCommish names={NAMES} demo callsOn games={games} now={NOW} calls={[
+          { id: 'c1', user_id: 'u-kevin', game_id: 'f3', side: 'HOME', margin: 7, body: 'Bills by a touchdown, book it', created_at: new Date(NOW - 7 * 3600_000).toISOString() },
+          { id: 'c2', user_id: 'u-jess', game_id: 'f1', side: 'HOME', margin: null, body: '', created_at: new Date(NOW - 80 * 3600_000).toISOString() },
+          { id: 'c3', user_id: 'u-colin', game_id: 'o3', side: 'AWAY', margin: 3, body: 'Jets on the road, yes really', created_at: new Date(NOW - 600_000).toISOString() },
+        ]} messages={[
           { id: 'm1', user_id: 'u-kevin', body: 'who took the Jets lol', created_at: new Date(NOW - 3600_000).toISOString() },
           { id: 'm2', user_id: 'u-colin', body: 'me. and I would do it again', created_at: new Date(NOW - 3500_000).toISOString() },
           { id: 'm3', user_id: 'u-sam', body: 'GB in the red zone, Colin is sweating', created_at: new Date(NOW - 120_000).toISOString() },

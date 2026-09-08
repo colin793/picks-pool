@@ -68,6 +68,7 @@ export async function updateLeague(leagueId, formData) {
         lock_of_week: formData.get('lock_of_week') === 'on',
         duels: formData.get('duels') === 'on',
         duty: String(formData.get('duty') || '').trim().slice(0, 120),
+        calls: formData.get('calls') === 'on',
       } : {}),
     })
     .eq('id', leagueId); // RLS: commissioner only
@@ -275,6 +276,26 @@ export async function postMessage(leagueId, formData) {
   if (!body) return;
   const { error } = await sb().from('messages').insert({ league_id: leagueId, user_id: user.id, body }); // RLS: members
   if (error) throw new Error(error.message);
+  revalidatePath(`/l/${leagueId}/chat`);
+}
+
+// Call it: "KC by 10" on an open game. RLS: member, calls on, open game in the slate.
+export async function postCall(leagueId, formData) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  const game_id = String(formData.get('game_id') || '');
+  const side = String(formData.get('side') || '');
+  const marginRaw = String(formData.get('margin') || '').trim();
+  const margin = marginRaw ? Math.min(99, Math.max(1, Math.round(Number(marginRaw)) || 1)) : null;
+  const body = String(formData.get('body') || '').trim().slice(0, 140);
+  if (!game_id || (side !== 'HOME' && side !== 'AWAY')) return;
+  const { error } = await sb().from('calls').insert({ league_id: leagueId, user_id: user.id, game_id, side, margin, body });
+  if (error) throw new Error(/row-level security/i.test(error.message) ? 'That game has kicked off, or calls are switched off.' : error.message);
+  revalidatePath(`/l/${leagueId}/chat`);
+}
+
+export async function deleteCall(leagueId, id) {
+  await sb().from('calls').delete().eq('id', id); // RLS: own before kickoff, or commissioner
   revalidatePath(`/l/${leagueId}/chat`);
 }
 

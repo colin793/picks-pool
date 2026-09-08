@@ -7,6 +7,7 @@ drop table if exists public.recaps_sent cascade;  -- v2
 drop table if exists public.push_sent cascade;    -- v2.2
 drop table if exists public.messages cascade;     -- v2.5
 drop table if exists public.reactions cascade;    -- v2.6
+drop table if exists public.calls cascade;            -- v2.8
 drop table if exists public.survivor_picks cascade;   -- v2.7
 drop table if exists public.survivor_entries cascade; -- v2.7
 drop table if exists public.push_subscriptions cascade; -- v2.2
@@ -33,6 +34,7 @@ drop function if exists public.in_slate(uuid, int, text, text);
 drop function if exists public.entry_locked(uuid);
 drop function if exists public.pick_open(uuid, text);
 drop function if exists public.pick_open(uuid, text, text);
+drop function if exists public.call_open(uuid, text);
 drop function if exists public.survivor_open(uuid, int);
 drop function if exists public.survivor_pick_open(uuid, int, text, text, text);
 drop function if exists public.survivor_picks_fill();
