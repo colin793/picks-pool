@@ -240,3 +240,22 @@ export function visibleSurvivorPicks(me = 'u-colin', now = NOW) {
   }
   return out;
 }
+
+// What ESPN's summary looks like once lib/scores/matchup.js has boiled it
+// down, for the /dev preview's matchup fold.
+export const DEMO_NOTES = {
+  venue: 'Lumen Field',
+  projection: { home: 61, away: 39 },
+  lastFive: {
+    home: [{ result: 'W', score: '31-27', opp: 'vs LAR' }, { result: 'W', score: '29-13', opp: 'vs NE' }, { result: 'L', score: '17-7', opp: 'vs DAL' }, { result: 'L', score: '19-16', opp: '@ TEN' }, { result: 'T', score: '9-9', opp: '@ KC' }],
+    away: [{ result: 'W', score: '10-7', opp: '@ DEN' }, { result: 'L', score: '29-13', opp: 'vs SEA' }, { result: 'T', score: '13-13', opp: 'vs IND' }, { result: 'W', score: '24-21', opp: 'vs PHI' }, { result: 'L', score: '37-13', opp: '@ CLE' }],
+  },
+  leaders: {
+    home: [{ stat: 'PASS', name: 'S. Darnold', pos: 'QB', value: '1,102 YDS, 8 TD' }, { stat: 'RUSH', name: 'K. Walker III', pos: 'RB', value: '312 YDS, 3 TD' }, { stat: 'REC', name: 'J. Smith-Njigba', pos: 'WR', value: '401 YDS, 2 TD' }],
+    away: [{ stat: 'PASS', name: 'D. Maye', pos: 'QB', value: '954 YDS, 6 TD' }, { stat: 'RUSH', name: 'R. Stevenson', pos: 'RB', value: '288 YDS, 2 TD' }, { stat: 'REC', name: 'S. Diggs', pos: 'WR', value: '355 YDS, 3 TD' }],
+  },
+  injuries: {
+    home: [{ name: 'Ty Okada', pos: 'S', status: 'Questionable' }, { name: 'Nick Emmanwori', pos: 'S', status: 'Questionable' }, { name: 'Zach Charbonnet', pos: 'RB', status: 'Out' }, { name: 'Josh Jones', pos: 'G', status: 'Questionable' }, { name: 'Tory Horton', pos: 'WR', status: 'Questionable' }],
+    away: [{ name: 'Ben Brown', pos: 'C', status: 'Out' }, { name: 'TreVeyon Henderson', pos: 'RB', status: 'Questionable' }, { name: 'Bryce Baringer', pos: 'P', status: 'Injured Reserve' }],
+  },
+};
