@@ -96,3 +96,17 @@ assert.equal(empty.start, null);
 assert.deepEqual(empty.slates, []);
 
 console.log('survivor self-check: all good');
+
+// ---- who needs a nudge, and what the recap says ----
+import { survivorNeeds, survivorRecapFacts } from './survivor.js';
+// Week 2, Sunday afternoon: Jess is alive with no team; Colin and Brian have picked; Kevin and Sam are out.
+assert.deepEqual(survivorNeeds(games, entries, picks, W2, { now: NOW }), ['jess']);
+// Nobody needs anything on a slate that has already been judged.
+assert.deepEqual(survivorNeeds(games, entries, picks, W1, { now: NOW }), []);
+const nm = new Map([['colin', 'Colin'], ['kevin', 'Kevin'], ['brian', 'Brian'], ['sam', 'Sam'], ['jess', 'Jess']]);
+assert.equal(survivorRecapFacts(games, entries, picks, W1, nm, { now: NOW }),
+  'Survivor: 3 of 5 still alive. Fell this week: Kevin (took PHI, lost 20-27); Sam (took PIT, tied 13-13).');
+assert.equal(survivorRecapFacts(games, [], [], W1, nm, { now: NOW }), '');
+assert.match(survivorRecapFacts(s3 && w3.map((x) => (x.id === 'e' ? { ...x, state: 'post', home_score: 14, away_score: 24, winner: 'AWAY' } : x)), entries, p3, W3, nm, { now: Date.parse('2026-09-28T12:00:00Z') }),
+  /Survivor pool is over: Colin and Brian fell together and split the pot\./);
+console.log('survivor nudges self-check: all good');

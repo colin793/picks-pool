@@ -4,7 +4,8 @@ import { sport as sportOf } from './scores/sports';
 import { sendEach } from './email/send';
 import { fetchAll } from './db';
 import { applyFeatured } from './featured';
-import { featuredRows } from './league';
+import { featuredRows, loadSurvivor } from './league';
+import { survivorRecapFacts } from './survivor';
 
 // Results recap: congratulate the winner, show the pot, lightly roast the
 // worst picker. Same text to everyone in the league: the shared roast is the
@@ -95,6 +96,13 @@ async function recapLeague(db, league, season, key, games) {
     .slice(0, 2)
     .map((m) => m.text);
 
+  // The survivor pool, when the league runs one: who stands, who fell.
+  let survivor = '';
+  if (league.survivor) {
+    const sv = await loadSurvivor(db, league, season);
+    if (!sv.missing) survivor = survivorRecapFacts(sv.games, sv.entries, sv.picks, key, new Map([...nameMap]));
+  }
+
   const facts = [
     `League: ${league.name}. ${label} results.`,
     `Winner${winners.length > 1 ? 's (split pot)' : ''}: ${winnerNames}, ${winners[0].correct} correct, wins ${money(share)}${winners.length > 1 ? ' each' : ''}.`,
@@ -103,6 +111,7 @@ async function recapLeague(db, league, season, key, games) {
     `Full standings: ${rows.map((r) => `${names.get(r.user_id)} ${r.correct}-${r.incorrect}`).join(', ')}.`,
     `Worst picker: ${worstName} at ${worst.correct}-${worst.incorrect}.`,
     worstMisses.length ? `${worstName}'s ugliest calls: ${worstMisses.join('; ')}.` : '',
+    survivor,
   ].filter(Boolean).join('\n');
 
   const fallback = `${label} is in the books.\n\n${facts}\n\nSee the full board in the app.`;
@@ -125,7 +134,8 @@ async function aiRecap(facts) {
           'You write a short results recap email for a friendly sports pick-em pool. ' +
           'Plain text only, no markdown, no subject line, no emoji. 120-180 words. ' +
           'Congratulate the winner by name and state what they won. ' +
-          'One light jab at the worst picker: roast the picks, never the person, ' +
+          'One light jab at the worst picker: roast the picks, never the person. ' +
+          'If survivor facts are given, one sentence on who fell and how many stand. ' +
           'and only use the facts provided. Everything must come from the facts; invent nothing. ' +
           'No em dashes. Sign off as "The Commissioner\'s Robot."',
         messages: [{ role: 'user', content: facts }],

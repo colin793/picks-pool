@@ -116,3 +116,24 @@ export function survivorPot(entries, feeCents, winners = []) {
   const pot = entries.length * feeCents;
   return { pot, share: winners.length ? Math.floor(pot / winners.length) : 0 };
 }
+
+// Who is alive and has no team for this slate: the people a lock warning or
+// a morning reminder should reach. User ids.
+export function survivorNeeds(games, entries, picks, slateKey, { now = Date.now() } = {}) {
+  const { rows } = survivorStandings(games, entries, picks, { now });
+  return rows.filter((r) => r.status === 'alive' && !r.cells.get(slateKey)).map((r) => r.user_id);
+}
+
+// Plain facts for the recap: how many stand, who fell this slate and how.
+// `names.get(id)` gives a display name. Empty string when nobody is in.
+export function survivorRecapFacts(games, entries, picks, slateKey, names, { now = Date.now() } = {}) {
+  const { rows, alive, complete, winners } = survivorStandings(games, entries, picks, { now });
+  if (!rows.length) return '';
+  const name = (id) => names.get(id) ?? 'Player';
+  const fell = rows.filter((r) => r.status === 'out' && r.outSlate === slateKey);
+  const lines = [];
+  if (complete) lines.push(`Survivor pool is over: ${winners.map((w) => name(w.user_id)).join(' and ')} ${winners.length > 1 ? 'fell together and split the pot' : 'outlasted everyone and takes the pot'}.`);
+  else lines.push(`Survivor: ${alive} of ${rows.length} still alive.`);
+  if (fell.length) lines.push(`Fell this week: ${fell.map((r) => `${name(r.user_id)} (${outText(r).replace(/^Out in [^:]+: /, '')})`).join('; ')}.`);
+  return lines.join(' ');
+}

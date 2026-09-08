@@ -5,7 +5,9 @@ import { admin, appUrl } from '../supabase';
 import { applyFeatured } from '../featured';
 import { featuredRows } from '../league';
 import { pushConfigured, pushTo, subscriptionsFor } from './send';
-import { lockWindow, lockMessage, leaders, leadMessages } from './rules';
+import { lockWindow, lockMessage, survivorLockMessage, leaders, leadMessages } from './rules';
+import { loadSurvivor } from '../league';
+import { survivorNeeds } from '../survivor';
 
 export async function runPushJobs(sportKey = null) {
   if (!pushConfigured()) return { skipped: 'no VAPID keys' };
@@ -38,18 +40,33 @@ export async function runPushJobs(sportKey = null) {
       const leagueUrl = `${base}/l/${league.id}`;
       out.leagues += 1;
 
-      // 1. Picks lock soon and you have not entered.
+      // 1. Picks lock soon and you have not entered. When the league runs a
+      //    survivor pool, the same window also covers an alive player with no
+      //    team yet: folded into this alert when both apply, its own alert
+      //    (kind 'slock') when only the survivor team is missing.
       const win = lockWindow(games);
       if (win) {
         const entered = new Set((entries ?? []).map((e) => e.user_id));
-        const { data: warned } = await db.from('push_sent').select('key')
-          .match({ league_id: league.id, season: state.season, slate_key: state.slate_key, kind: 'lock' });
-        const done = new Set((warned ?? []).map((r) => r.key));
-        const payload = lockMessage(league, state.slate_label, win, leagueUrl);
+        let needsTeam = new Set();
+        if (league.survivor) {
+          const sv = await loadSurvivor(db, league, state.season);
+          if (!sv.missing) needsTeam = new Set(survivorNeeds(sv.games, sv.entries, sv.picks, state.slate_key));
+        }
+        const { data: warned } = await db.from('push_sent').select('kind, key')
+          .match({ league_id: league.id, season: state.season, slate_key: state.slate_key }).in('kind', ['lock', 'slock']);
+        const done = new Set((warned ?? []).map((r) => `${r.kind}:${r.key}`));
+        const mark = (kind, uid) => db.from('push_sent').upsert({ league_id: league.id, season: state.season, slate_key: state.slate_key, kind, key: uid });
         for (const uid of memberIds) {
-          if (entered.has(uid) || done.has(uid) || !subs.has(uid)) continue;
-          out.lock += await pushTo(subs.get(uid), payload);
-          await db.from('push_sent').upsert({ league_id: league.id, season: state.season, slate_key: state.slate_key, kind: 'lock', key: uid });
+          if (!subs.has(uid)) continue;
+          const survivor = needsTeam.has(uid) && !done.has(`slock:${uid}`);
+          if (!entered.has(uid) && !done.has(`lock:${uid}`)) {
+            out.lock += await pushTo(subs.get(uid), lockMessage(league, state.slate_label, win, leagueUrl, { survivor }));
+            await mark('lock', uid);
+            if (survivor) await mark('slock', uid);
+          } else if (survivor) {
+            out.lock += await pushTo(subs.get(uid), survivorLockMessage(league, state.slate_label, win, leagueUrl));
+            await mark('slock', uid);
+          }
         }
       }
 
