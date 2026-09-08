@@ -17,6 +17,8 @@ export function playerSteps(league, sport, { fee = null } = {}) {
   if (league.survivor) steps.push({ title: 'Survivor', body: `A second pool: one team a ${n} to win outright, never the same team twice, lose and you are out. Its own buy-in, once a season. Entries close when the pool's first ${n} locks.` });
   if (league.lock_of_week) steps.push({ title: 'Lock of the week', body: `Tap Lock on one of your picked games. If it hits it counts double. Choose before that game kicks off.` });
   if (league.duels) steps.push({ title: 'Duels', body: `Every ${n} you get one rival, everyone in turn. More points than them and the duel is yours. Records are on the Season tab.` });
+  if (league.draft) steps.push({ title: 'The weekly draft', body: `On the Draft tab, rank the ${n}'s teams and save: that puts you in. At the first kickoff a snake draft deals the teams from everyone's rankings. Each drafted team that wins is a point; most points takes the ${n}.` });
+  if (league.boot) steps.push({ title: 'Boot of the Week', body: `Last place last ${n} wears a 🥾 on the board until this ${n} is done. It comes off; it always comes off.` });
   steps.push({ title: 'Chat', body: `The room. Talk, react to picks on the grid once they reveal${league.calls !== false ? ', and call a game ("KC by 10") to put it on the record; it gets graded' : ''}.` });
   if (league.duty) steps.push({ title: "Loser's duty", body: league.duty });
   steps.push({ title: 'Two alerts, that is all', body: `Turn on notifications in Settings and you get told when picks are about to lock without you, and when someone passes you. Nothing else, ever.` });

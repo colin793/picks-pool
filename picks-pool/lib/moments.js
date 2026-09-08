@@ -103,3 +103,12 @@ export function wrapText(results, me, names, feeCents, label) {
   const you = mine && !won ? `, you finished ${ord(mine.rank)} at ${mine.correct}-${mine.incorrect}` : mine ? ` at ${mine.correct}-${mine.incorrect}` : '';
   return `${label} is in the books: ${winners}${pot ? ` ${money(share)}` : ''}${you}.`;
 }
+
+// Boot of the Week: whoever finished last in the slate that just ended, ties
+// and all. Only from a complete slate with at least three rows, so a two-
+// person week does not boot the runner-up. Returns user ids.
+export function bootOf(results) {
+  if (!results?.complete || (results.rows?.length ?? 0) < 3) return [];
+  const worst = Math.max(...results.rows.map((r) => r.rank));
+  return results.rows.filter((r) => r.rank === worst).map((r) => r.user_id);
+}

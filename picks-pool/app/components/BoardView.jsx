@@ -9,7 +9,8 @@ import { Confetti } from './Pops';
 import { slateDuels } from '../../lib/duels';
 
 // The "This week" page body. Server page and /dev preview both render this.
-export default function BoardView({ league, sport, label, isCurrent, slates, slateKey, games, entries, picks, names, me, now = Date.now(), shareUrl = null, reactions = [], demo = false }) {
+// boot: user ids wearing the Boot of the Week (last place in the slate before this one).
+export default function BoardView({ league, sport, label, isCurrent, slates, slateKey, games, entries, picks, names, me, now = Date.now(), shareUrl = null, reactions = [], demo = false, boot = [] }) {
   const scoring = league.scoring ?? 'straight';
   const lock = Boolean(league.lock_of_week);
   const { rows, complete, winners, actualTotal, lastGame, live, finals } = slateResults(games, entries, picks, { scoring, lock });
@@ -78,13 +79,14 @@ export default function BoardView({ league, sport, label, isCurrent, slates, sla
           {rivalry && !complete && <span className="text-xs font-semibold text-ink2">{rivalry}</span>}
           {live > 0 && <span className="pill pill-warn">Live</span>}
         </div>
-        <Standings rows={rows} names={names} me={me} live={live} complete={complete} winners={winners} feeCents={league.entry_fee_cents} lock={lock} />
+        <Standings rows={rows} names={names} me={me} live={live} complete={complete} winners={winners} feeCents={league.entry_fee_cents} lock={lock} boot={boot} />
         <p className="mt-3 text-xs text-muted">
           {complete
             ? `Final. Tiebreaker target was ${actualTotal} total ${sport.unit}.`
             : 'Ties share the better rank. Other players’ tiebreakers appear once the last game kicks off. Scores refresh on every visit.'}
           {lock ? ' Lock of the week: a right pick on your lock counts double.' : ''}
           {league.duty ? <> <span className="font-semibold text-ink2">Loser&rsquo;s duty:</span> {league.duty}</> : ''}
+          {boot.length ? <> 🥾 {boot.map((id) => names.get(id)?.display_name ?? 'Someone').join(' and ')} {boot.length > 1 ? 'wear' : 'wears'} the Boot of the Week for last week&rsquo;s finish.</> : ''}
         </p>
       </section>
 

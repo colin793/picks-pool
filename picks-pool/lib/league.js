@@ -134,3 +134,25 @@ export async function loadSeason(db, league, season, { raw = false } = {}) {
   ]);
   return { games: applyFeatured(board, rows), entries, picks: picks.map(({ entries: _e, ...p }) => p), payouts };
 }
+
+// Everything the Draft tab needs for one slate: the league's games, your
+// ranking, whether the draft has run, the picks it dealt, and how many
+// people are in. Runs the draft first when it is due. A database without
+// the draft tables reports `missing`.
+export async function loadDraft(db, league, season, slateKey, userId) {
+  const { games, names } = await loadSlate(db, league, season, slateKey);
+  const { runDraftIfDue } = await import('./draftRun.js');
+  const { data: probe, error } = await db.from('drafts').select('slate_key').match({ league_id: league.id, season, slate_key: slateKey }).maybeSingle();
+  if (error) {
+    if (!missingTable(error, 'drafts')) throw new Error(error.message);
+    return { missing: true, games, names, ran: null, picks: [], mine: null, entered: 0 };
+  }
+  const ran = probe ? probe : await runDraftIfDue(league, season, slateKey, games);
+  const key = { league_id: league.id, season, slate_key: slateKey };
+  const [{ data: picks }, { data: mine }, { count }] = await Promise.all([
+    db.from('draft_picks').select('*').match(key).order('pick_no'), // RLS: members
+    db.from('draft_rankings').select('ranking, updated_at').match({ ...key, user_id: userId }).maybeSingle(), // RLS: own
+    admin().from('draft_rankings').select('user_id', { count: 'exact', head: true }).match(key), // a count only: rankings stay private until the run
+  ]);
+  return { missing: false, games, names, ran: ran ?? null, picks: picks ?? [], mine: mine ? { ranking: Array.isArray(mine.ranking) ? mine.ranking : [], updated_at: mine.updated_at } : null, entered: count ?? 0 };
+}

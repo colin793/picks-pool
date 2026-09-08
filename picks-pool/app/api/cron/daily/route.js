@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { syncAll } from '../../../../lib/scores/sync';
 import { sendRecaps } from '../../../../lib/recap';
 import { sendReminders } from '../../../../lib/remind';
+import { runDueDrafts } from '../../../../lib/draftRun';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -18,7 +19,7 @@ export async function GET(request) {
   }
   const task = new URL(request.url).searchParams.get('task') ?? 'all';
   const out = { ok: true, task };
-  if (task === 'all' || task === 'sync') out.sync = await syncAll(true);
+  if (task === 'all' || task === 'sync') { out.sync = await syncAll(true); out.drafts = await runDueDrafts(); }
   if (task === 'all' || task === 'recap') out.recap = await sendRecaps();
   if (task === 'all' || task === 'remind') out.remind = await sendReminders();
   return NextResponse.json(out);

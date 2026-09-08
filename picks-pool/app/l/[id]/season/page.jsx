@@ -2,6 +2,7 @@ import { leagueContext, currentSlate, loadSeason } from '../../../../lib/league'
 import { seasonStats, slateResults } from '../../../../lib/stats';
 import { duelSeason, recordText } from '../../../../lib/duels';
 import { callRecords } from '../../../../lib/calls';
+import { draftResults } from '../../../../lib/draft';
 import SeasonTable from '../../../components/SeasonTable';
 
 export const dynamic = 'force-dynamic';
@@ -35,7 +36,20 @@ export default async function Season({ params }) {
     name: names.get(s.user_id)?.display_name ?? 'Player',
     emoji: names.get(s.user_id)?.emoji ?? '',
     ...(duels ? { duels: recordText(duels.get(s.user_id)), duelWins: duels.get(s.user_id)?.won ?? 0 } : {}),
+    ...(draftWins ? { draftWins: draftWins.get(s.user_id) ?? 0 } : {}),
   }));
+  // The weekly draft: weeks won, from every slate the draft has dealt.
+  let draftWins = null;
+  if (league.draft) {
+    const { data: dp } = await db.from('draft_picks').select('*').eq('league_id', league.id).eq('season', now.season); // RLS: members
+    if (dp?.length) {
+      draftWins = new Map();
+      for (const k of new Set(dp.map((p) => p.slate_key))) {
+        const r = draftResults(dp.filter((p) => p.slate_key === k), games.filter((g) => g.slate_key === k));
+        for (const w of r.winners) draftWins.set(w.user_id, (draftWins.get(w.user_id) ?? 0) + 1);
+      }
+    }
+  }
   // Call it: hit rate per person over the season's graded calls.
   let receipts = [];
   if (league.calls) {
@@ -62,7 +76,7 @@ export default async function Season({ params }) {
         </section>
       )}
       <section className="card">
-        <SeasonTable rows={stats} me={user.id} lock={lock} duels={Boolean(duels)} />
+        <SeasonTable rows={stats} me={user.id} lock={lock} duels={Boolean(duels)} draft={Boolean(draftWins)} />
         <p className="mt-3 text-xs text-muted">
           Tap a column to sort. Average finish counts only completed slates a player entered; ties share the better rank. Won is money the commissioner has marked as sent.
           {lock ? ' Pts adds one for each lock that hit.' : ''}{duels ? ' Duels is the head-to-head record, wins-losses-ties.' : ''}

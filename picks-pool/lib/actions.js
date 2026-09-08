@@ -70,6 +70,7 @@ export async function updateLeague(leagueId, formData) {
         duty: String(formData.get('duty') || '').trim().slice(0, 120),
         calls: formData.get('calls') === 'on',
       } : {}),
+      ...(formData.has('draft_ready') ? { boot: formData.get('boot') === 'on', draft: formData.get('draft') === 'on' } : {}),
     })
     .eq('id', leagueId); // RLS: commissioner only
   if (error) throw new Error(error.message);
@@ -412,6 +413,29 @@ export async function react(leagueId, entryId, gameId, emoji) {
     if (error) throw new Error(error.message);
   }
   revalidatePath(`/l/${leagueId}/board`);
+}
+
+// ---------- the weekly draft ----------
+
+// Your ranking for the slate, team keys in order. Saving it is what puts
+// you in this week's draft. RLS: draft on, member, before the first kickoff,
+// draft not yet run.
+export async function saveRanking(leagueId, season, slateKey, ranking) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  const clean = [...new Set((Array.isArray(ranking) ? ranking : []).map(String).filter((k) => /^[^:]+:(HOME|AWAY)$/.test(k)))].slice(0, 200);
+  const { error } = await sb().from('draft_rankings')
+    .upsert({ league_id: leagueId, user_id: user.id, season, slate_key: slateKey, ranking: clean, updated_at: new Date().toISOString() }, { onConflict: 'league_id,user_id,season,slate_key' });
+  if (error) throw new Error(/row-level security/i.test(error.message) ? 'Rankings are closed: the first game has kicked off and the draft has run.' : error.message);
+  revalidatePath(`/l/${leagueId}/draft`);
+  return { ok: true };
+}
+
+export async function leaveDraft(leagueId, season, slateKey) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  await sb().from('draft_rankings').delete().match({ league_id: leagueId, user_id: user.id, season, slate_key: slateKey }); // RLS: own, while open
+  revalidatePath(`/l/${leagueId}/draft`);
 }
 
 // ---------- tours ----------

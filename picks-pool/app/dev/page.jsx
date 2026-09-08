@@ -9,9 +9,11 @@ import PushToggle from '../components/PushToggle';
 import ChatView from '../components/ChatView';
 import SurvivorView from '../components/SurvivorView';
 import Tour from '../components/Tour';
+import DraftView from '../components/DraftView';
+import { snakeDraft, slateTeams } from '../../lib/draft';
 import { playerSteps, commishChecklist } from '../../lib/tour';
 import { sport as sportOf } from '../../lib/scores/sports';
-import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, visiblePicks, EPL_GAMES, EPL_PICKS, EPL_NOW, CFB_BOARD, CFB_NOW, SURVIVOR_PREV, SURVIVOR_ENTRIES, visibleSurvivorPicks } from '../../lib/fixtures';
+import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, at, visiblePicks, EPL_GAMES, EPL_PICKS, EPL_NOW, CFB_BOARD, CFB_NOW, SURVIVOR_PREV, SURVIVOR_ENTRIES, visibleSurvivorPicks } from '../../lib/fixtures';
 import { featuredGames } from '../../lib/featured';
 import { survivorStandings } from '../../lib/survivor';
 import { roomTake, takeText } from '../../lib/room';
@@ -65,9 +67,24 @@ export default function Preview({ searchParams }) {
         <Link href="/dev?view=moments&won=1" className="underline">won</Link>
         <Link href="/dev?view=modes" className="underline">modes</Link>
         <Link href="/dev?view=tour" className="underline">tour</Link>
+        <Link href="/dev?view=draft" className="underline">draft</Link>
+        <Link href="/dev?view=draft&ran=1" className="underline">drafted</Link>
         {['picks', 'board'].includes(view) && <DevBump />}
       </div>
-      {view === 'tour' ? (
+      {view === 'draft' ? (
+        // The Draft tab: ranking the teams before the first kickoff, or what the draft dealt (?ran=1).
+        (() => {
+          const ran = Boolean(searchParams?.ran);
+          const dl = { ...LEAGUE, draft: true };
+          if (!ran) {
+            const pre = games.filter((g) => g.state === 'pre');
+            return <DraftView league={dl} sport={sport} slate={slate} games={pre} names={NAMES} ran={null} picks={[]} mine={{ ranking: ['o1:HOME', 'o3:HOME'] }} entered={4} me={me} now={NOW} demo />;
+          }
+          const d = snakeDraft(PLAYERS.map((p) => p.id), new Map([[me, ['f3:AWAY', 'l1:AWAY']]]), slateTeams(games), 'demo');
+          const picks = d.picks.map((p) => { const [game_id, side] = p.team.split(':'); return { user_id: p.user_id, game_id, side, round: p.round, pick_no: p.pick_no }; });
+          return <DraftView league={dl} sport={sport} slate={slate} games={games} names={NAMES} ran={{ ran_at: at(-60) }} picks={picks} mine={null} entered={6} me={me} now={NOW} demo />;
+        })()
+      ) : view === 'tour' ? (
         // The first-time walkthrough over the picks page, and the commissioner's checklist.
         <>
           <AdminView user={{ id: me }} league={{ ...LEAGUE, survivor: false, lock_of_week: false, duels: false, duty: '', calls: true, venmo_handle: '' }} sport={sport} names={NAMES}

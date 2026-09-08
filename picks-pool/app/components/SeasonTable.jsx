@@ -15,14 +15,15 @@ const COLS = [
 ];
 
 // lock: show points and lock hits; duels: show the duel record.
-export default function SeasonTable({ rows, me, lock = false, duels = false }) {
+export default function SeasonTable({ rows, me, lock = false, duels = false, draft = false }) {
   const [sort, setSort] = useState({ key: 'wins', dir: -1 });
   const cols = useMemo(() => {
     const out = [...COLS];
     if (lock) out.splice(4, 0, { key: 'points', label: 'Pts' }, { key: 'locks', label: 'Locks' });
     if (duels) out.splice(3, 0, { key: 'duelWins', label: 'Duels' });
+    if (draft) out.splice(3, 0, { key: 'draftWins', label: 'Drafts' });
     return out;
-  }, [lock, duels]);
+  }, [lock, duels, draft]);
 
   const sorted = useMemo(() => {
     const col = cols.find((c) => c.key === sort.key);
@@ -57,6 +58,7 @@ export default function SeasonTable({ rows, me, lock = false, duels = false }) {
               <td className="sticky left-0 whitespace-nowrap bg-surface"><span className="mr-1.5">{r.emoji}</span>{r.name}</td>
               <td className="num text-right text-base">{r.wins}</td>
               <td className="text-right">{money(r.money)}</td>
+              {draft && <td className="num text-right">{r.draftWins}</td>}
               {duels && <td className="text-right">{r.duels}</td>}
               <td className="text-right">{r.avgFinish == null ? '–' : r.avgFinish.toFixed(1)}</td>
               {lock && <td className="num text-right">{r.points}</td>}

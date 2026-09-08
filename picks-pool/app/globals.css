@@ -30,8 +30,11 @@
   --font-display: 'Barlow Condensed';
   color-scheme: light dark;
 }
+/* Three theme states. Nothing chosen: follow the device. A choice from
+   Settings stamps data-theme on <html> (app/layout.jsx reads it before first
+   paint) and wins in both directions. Same tokens either way. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg-rgb: 14 19 25;
     --surface-rgb: 22 29 38;
     --surface-2-rgb: 28 37 48;
@@ -47,6 +50,23 @@
     --warn-soft-rgb: 51 39 15;
   }
 }
+:root[data-theme="dark"] {
+    --bg-rgb: 14 19 25;
+    --surface-rgb: 22 29 38;
+    --surface-2-rgb: 28 37 48;
+    --ink-rgb: 231 236 242;
+    --ink-2-rgb: 177 188 201;
+    --muted-rgb: 127 139 154;
+    --line-rgb: 41 51 63;
+    --good-rgb: 95 208 138;
+    --good-soft-rgb: 20 48 31;
+    --bad-rgb: 243 145 137;
+    --bad-soft-rgb: 58 27 24;
+    --warn-rgb: 228 180 76;
+    --warn-soft-rgb: 51 39 15;
+  color-scheme: dark;
+}
+:root[data-theme="light"] { color-scheme: light; }
 
 html { -webkit-tap-highlight-color: transparent; }
 body {
