@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { loadMatchup } from '../../lib/actions';
 import { notesEmpty } from '../../lib/scores/matchup';
 import { DEMO_NOTES } from '../../lib/fixtures';
+import { clash, tint } from '../../lib/color';
 
 // "About this matchup": the room's take (always, it is ours), then what ESPN
 // knows, fetched the first time the fold opens. One column per team where
@@ -26,6 +27,10 @@ export default function MatchupFold({ game: g, take = { home: [], away: [] }, ho
   const sides = homeFirst ? ['home', 'away'] : ['away', 'home'];
   const abbr = (s) => (s === 'home' ? g.home_abbr : g.away_abbr);
   const color = (s) => (s === 'home' ? g.home_color : g.away_color) || 'rgb(var(--c1-rgb))';
+  // Two navies make one bar. Then the second side wears a clear tint of its
+  // color (navy becomes steel blue), and both labels get a swatch.
+  const twins = clash(g.home_color, g.away_color);
+  const fill = (s, second) => ({ background: second && twins ? tint(s === 'home' ? g.home_color : g.away_color) : color(s) });
   const rec = (s) => (s === 'home' ? g.home_record : g.away_record);
   const records = (rec('home') || rec('away')) && !(rec('home') === '0-0' && rec('away') === '0-0');
   const has = (key) => notes && sides.some((s) => notes[key]?.[s]?.length);
@@ -57,12 +62,19 @@ export default function MatchupFold({ game: g, take = { home: [], away: [] }, ho
             <section>
               <h4 className="eyebrow mb-1">ESPN gives it</h4>
               <div className="flex items-center gap-2 font-display text-sm font-bold">
-                <span className="w-16 shrink-0">{abbr(sides[0])} {notes.projection[sides[0]]}%</span>
-                <span className="flex h-2.5 flex-1 overflow-hidden rounded-full bg-line" aria-hidden>
-                  <span style={{ width: `${notes.projection[sides[0]]}%`, background: color(sides[0]) }} />
-                  <span style={{ width: `${notes.projection[sides[1]]}%`, background: color(sides[1]) }} />
+                <span className="flex w-20 shrink-0 items-center gap-1.5">
+                  {twins && <span className="h-3 w-3 shrink-0 rounded-sm" style={fill(sides[0], false)} aria-hidden />}
+                  {abbr(sides[0])} {notes.projection[sides[0]]}%
                 </span>
-                <span className="w-16 shrink-0 text-right">{notes.projection[sides[1]]}% {abbr(sides[1])}</span>
+                <span className="flex h-3 flex-1 overflow-hidden rounded-full bg-line" aria-hidden>
+                  <span style={{ width: `${notes.projection[sides[0]]}%`, ...fill(sides[0], false) }} />
+                  <span className="w-0.5 shrink-0 bg-surface" />
+                  <span style={{ width: `${notes.projection[sides[1]]}%`, ...fill(sides[1], true) }} />
+                </span>
+                <span className="flex w-20 shrink-0 items-center justify-end gap-1.5">
+                  {notes.projection[sides[1]]}% {abbr(sides[1])}
+                  {twins && <span className="h-3 w-3 shrink-0 rounded-sm" style={fill(sides[1], true)} aria-hidden />}
+                </span>
               </div>
             </section>
           )}
