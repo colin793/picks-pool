@@ -58,6 +58,8 @@ create table public.leagues (
   lock_of_week boolean not null default false,
   duels boolean not null default false,
   duty text not null default '',
+  boot boolean not null default false,  -- Boot of the Week on the board for last week's last place
+  draft boolean not null default false, -- the weekly draft, a game beside the pick'em
   -- Call it: graded predictions in chat. On by default; changes no scores.
   calls boolean not null default true,
   recap_enabled boolean not null default true,
@@ -267,6 +269,41 @@ create table public.survivor_picks (
 );
 create index survivor_picks_league_idx on public.survivor_picks (league_id, season);
 
+-- The weekly draft. Everyone ranks the slate's teams; at the slate's first
+-- kickoff the server runs a snake draft from the rankings (lib/draft.js) and
+-- writes the picks. drafts: one row per slate once it has run (service role
+-- writes). draft_rankings: yours until the first kickoff, everyone's after
+-- the run. draft_picks: what the draft dealt (service role writes).
+create table public.drafts (
+  league_id uuid not null references public.leagues on delete cascade,
+  season int not null,
+  slate_key text not null,
+  seed text not null default '',
+  ran_at timestamptz not null default now(),
+  primary key (league_id, season, slate_key)
+);
+create table public.draft_rankings (
+  league_id uuid not null references public.leagues on delete cascade,
+  user_id uuid not null references public.profiles on delete cascade,
+  season int not null,
+  slate_key text not null,
+  ranking jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now(),
+  primary key (league_id, user_id, season, slate_key)
+);
+create table public.draft_picks (
+  league_id uuid not null references public.leagues on delete cascade,
+  season int not null,
+  slate_key text not null,
+  user_id uuid not null references public.profiles on delete cascade,
+  game_id text not null references public.games,
+  side text not null check (side in ('HOME', 'AWAY')),
+  round int not null,
+  pick_no int not null,
+  primary key (league_id, season, slate_key, game_id, side),
+  unique (league_id, season, slate_key, pick_no)
+);
+
 -- Call it: "KC by 10", pinned in the room and graded when the game goes
 -- final. Any member, any open game on the league's slate; delete your own
 -- before kickoff, the commissioner any time.
@@ -407,6 +444,22 @@ $$;
 create trigger survivor_entries_guard before update on public.survivor_entries
   for each row execute function public.survivor_entries_guard();
 
+-- Draft: when the slate's first game kicks off, rankings close and the draft runs.
+create function public.slate_first_kickoff(l uuid, s int, k text) returns timestamptz
+language sql security definer set search_path = public stable as $$
+  select min(g.kickoff) from games g join leagues lg on lg.sport = g.sport
+  where lg.id = l and g.season = s and g.slate_key = k and in_slate(l, s, k, g.id);
+$$;
+
+-- Draft: may the caller still rank for this slate? Draft on, member, before
+-- the first kickoff, and the draft has not run.
+create function public.draft_open(l uuid, s int, k text) returns boolean
+language sql security definer set search_path = public stable as $$
+  select exists (select 1 from leagues where id = l and draft) and is_member(l)
+    and coalesce(slate_first_kickoff(l, s, k) > now(), false)
+    and not exists (select 1 from drafts where league_id = l and season = s and slate_key = k);
+$$;
+
 -- Copy new signups into profiles (email included, so emails need no admin lookups).
 create function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
@@ -500,6 +553,9 @@ alter table public.messages enable row level security;
 alter table public.reactions enable row level security;
 alter table public.survivor_entries enable row level security;
 alter table public.survivor_picks enable row level security;
+alter table public.drafts enable row level security;
+alter table public.draft_rankings enable row level security;
+alter table public.draft_picks enable row level security;
 alter table public.calls enable row level security;
 
 -- reference data: read-only for anyone signed in.
@@ -640,6 +696,22 @@ create policy calls_insert on public.calls for insert to authenticated
   with check (user_id = auth.uid() and call_open(league_id, game_id));
 create policy calls_delete on public.calls for delete to authenticated
   using ((user_id = auth.uid() and exists (select 1 from games g where g.id = game_id and g.kickoff > now())) or is_commissioner(league_id));
+
+-- the weekly draft: members see the run and the picks; a ranking is yours
+-- until the first kickoff and everyone's once the draft has run.
+create policy drafts_read on public.drafts for select to authenticated using (is_member(league_id));
+create policy draft_picks_read on public.draft_picks for select to authenticated using (is_member(league_id));
+create policy draft_rankings_read on public.draft_rankings for select to authenticated using (
+  user_id = auth.uid()
+  or (is_member(league_id) and exists (select 1 from drafts d where d.league_id = draft_rankings.league_id and d.season = draft_rankings.season and d.slate_key = draft_rankings.slate_key))
+);
+create policy draft_rankings_insert on public.draft_rankings for insert to authenticated
+  with check (user_id = auth.uid() and draft_open(league_id, season, slate_key));
+create policy draft_rankings_update on public.draft_rankings for update to authenticated
+  using (user_id = auth.uid() and draft_open(league_id, season, slate_key))
+  with check (user_id = auth.uid() and draft_open(league_id, season, slate_key));
+create policy draft_rankings_delete on public.draft_rankings for delete to authenticated
+  using (user_id = auth.uid() and draft_open(league_id, season, slate_key));
 
 -- push subscriptions: your own devices, nothing else.
 create policy push_subscriptions_read on public.push_subscriptions for select to authenticated

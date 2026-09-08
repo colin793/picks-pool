@@ -2,7 +2,7 @@ import { money } from '../../lib/stats';
 import { FlashPill } from './Flash';
 
 // Standings for one slate. rows from slateResults(); names: user_id -> profile.
-export default function Standings({ rows, names, me, live, complete, winners = [], feeCents, showFees = true, lock = false }) {
+export default function Standings({ rows, names, me, live, complete, winners = [], feeCents, showFees = true, lock = false, boot = [] }) {
   const won = new Set(winners.map((w) => w.id));
   return (
     <div className="overflow-x-auto">
@@ -28,6 +28,7 @@ export default function Standings({ rows, names, me, live, complete, winners = [
                 <td className="num text-base text-muted">{r.rank}</td>
                 <td className="whitespace-nowrap">
                   <span className="mr-1.5">{p?.emoji}</span>{p?.display_name ?? 'Player'}
+                  {boot.includes(r.user_id) && <span className="ml-1.5" title="Boot of the Week: last place last week" aria-label="Boot of the Week">🥾</span>}
                   {complete && won.has(r.id) && <span className="pill pill-good ml-2">Winner</span>}
                 </td>
                 {lock && <td className="num text-right text-base">{r.points}{r.lockHit ? <span className="ml-0.5 text-xs" title="Lock hit">🔒</span> : ''}</td>}

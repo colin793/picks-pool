@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { syncAll } from '../../../../lib/scores/sync';
 import { runPushJobs } from '../../../../lib/push/jobs';
+import { runDueDrafts } from '../../../../lib/draftRun';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -16,6 +17,7 @@ export async function GET(request) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
   const sync = await syncAll(true);
+  const drafts = await runDueDrafts(); // the weekly draft runs at the first kickoff; this is the backstop for the hour nobody opens the tab
   const push = await runPushJobs();
-  return NextResponse.json({ ok: true, sync, push });
+  return NextResponse.json({ ok: true, sync, drafts, push });
 }

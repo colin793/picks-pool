@@ -85,4 +85,11 @@ assert.equal(wrapText(solo, 'kevin', names, 500, 'Week 2'), 'Week 2 is in the bo
 assert.equal(wrapText(solo, 'nobody', names, 500, 'Week 2'), 'Week 2 is in the books: Colin won $15.00.');
 assert.equal(wrapText(slateResults(games, entries, same), 'colin', names, 500, 'Week 2'), '');
 
+// ---- boot of the week ----
+import { bootOf } from './moments.js';
+assert.deepEqual(bootOf(res), ['sam']);                                             // last of three
+assert.deepEqual(bootOf({ ...res, complete: false }), []);                            // not until the slate is done
+assert.deepEqual(bootOf({ complete: true, rows: res.rows.slice(0, 2) }), []);         // two people: nobody gets booted
+assert.deepEqual(bootOf({ complete: true, rows: [{ user_id: 'a', rank: 1 }, { user_id: 'b', rank: 2 }, { user_id: 'c', rank: 2 }] }).sort(), ['b', 'c']); // a tie at the bottom shares it
+
 console.log('moments self-check: all good');

@@ -2,6 +2,8 @@ import { leagueContext, currentSlate, loadSlate, slateList } from '../../../../l
 import BoardView from '../../../components/BoardView';
 import LiveRefresh from '../../../components/LiveRefresh';
 import { refreshPlan } from '../../../../lib/live';
+import { slateResults } from '../../../../lib/stats';
+import { bootOf } from '../../../../lib/moments';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'This week' };
@@ -20,6 +22,16 @@ export default async function Board({ params, searchParams }) {
     ? await db.from('reactions').select('entry_id, game_id, user_id, emoji').in('entry_id', entryIds) // RLS: members
     : { data: [] };
 
+  // Boot of the Week: last place in the slate before this one wears it here.
+  let boot = [];
+  if (league.boot) {
+    const prev = slates.find((s) => s.key < key);
+    if (prev) {
+      const last = await loadSlate(db, league, now.season, prev.key);
+      boot = bootOf(slateResults(last.games, last.entries, last.picks, { scoring: league.scoring, lock: Boolean(league.lock_of_week) }));
+    }
+  }
+
   return (
     <>
       <LiveRefresh {...refreshPlan(data.games)} />
@@ -27,7 +39,7 @@ export default async function Board({ params, searchParams }) {
         league={league} sport={sport} label={label} isCurrent={key === now.key}
         slates={slates} slateKey={key} me={user.id} {...data}
         shareUrl={`/l/${league.id}/share?slate=${encodeURIComponent(key)}`}
-        reactions={reactions ?? []}
+        reactions={reactions ?? []} boot={boot}
       />
     </>
   );

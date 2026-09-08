@@ -30,7 +30,7 @@ const SLOT = {
   snf: '2026-09-14T00:20:00Z',   // Sunday 8:20 PM ET
   mnf: '2026-09-15T00:15:00Z',   // Monday 8:15 PM ET
 };
-const at = (h) => new Date(NOW + h * H).toISOString();
+export const at = (h) => new Date(NOW + h * H).toISOString();
 
 function game(id, away, home, slot, opts = {}) {
   const a = teams[away], h = teams[home];

@@ -571,6 +571,55 @@ do $$ declare n int; begin
   perform pg_temp.as_admin();
 end $$;
 
+-- The weekly draft: the switch, rankings that are yours until the first
+-- kickoff and everyone's after the run, picks the server deals.
+insert into games (id, sport, season, season_type, slate_key, slate_label, kickoff, home_abbr, home_name, away_abbr, away_name) values
+  ('c-wk4', 'cfb', 2026, 2, '2026-2-04', 'Week 4', now() + interval '15 days', 'UGA', 'Bulldogs', 'ALA', 'Crimson Tide');
+do $$ declare ok boolean; n int; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  begin
+    insert into draft_rankings (league_id, user_id, season, slate_key, ranking) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 2026, '2026-2-04', '["c-wk4:HOME"]'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('no ranking while the draft is off', ok);
+  perform pg_temp.as_admin();
+  update leagues set draft = true where id = '10000000-0000-0000-0000-000000000007';
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  begin
+    insert into draft_rankings (league_id, user_id, season, slate_key, ranking) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 2026, '2026-2-04', '["c-wk4:HOME"]'); ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('a member ranks the slate before its first kickoff', ok);
+  begin
+    insert into draft_rankings (league_id, user_id, season, slate_key, ranking) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 2026, '2026-2-02', '[]'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('no ranking once the slate has kicked off', ok);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000003'); -- bob, not a member
+  begin
+    insert into draft_rankings (league_id, user_id, season, slate_key, ranking) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000003', 2026, '2026-2-04', '[]'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a non-member cannot rank', ok);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- commissioner
+  select count(*) into n from draft_rankings where user_id = '00000000-0000-0000-0000-000000000002';
+  perform pg_temp.check('rankings are private until the draft runs', n = 0);
+  begin
+    insert into draft_picks (league_id, season, slate_key, user_id, game_id, side, round, pick_no) values ('10000000-0000-0000-0000-000000000007', 2026, '2026-2-04', '00000000-0000-0000-0000-000000000001', 'c-wk4', 'HOME', 1, 1); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('nobody deals draft picks by hand, not even the commissioner', ok);
+  perform pg_temp.as_admin(); -- the server runs the draft
+  insert into drafts (league_id, season, slate_key, seed) values ('10000000-0000-0000-0000-000000000007', 2026, '2026-2-04', 'x');
+  insert into draft_picks (league_id, season, slate_key, user_id, game_id, side, round, pick_no) values ('10000000-0000-0000-0000-000000000007', 2026, '2026-2-04', '00000000-0000-0000-0000-000000000002', 'c-wk4', 'HOME', 1, 1);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- commissioner
+  select count(*) into n from draft_rankings where user_id = '00000000-0000-0000-0000-000000000002';
+  perform pg_temp.check('...and open to the league after', n = 1);
+  select count(*) into n from draft_picks; perform pg_temp.check('a member sees what the draft dealt', n = 1);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  update draft_rankings set ranking = '[]' where user_id = '00000000-0000-0000-0000-000000000002'; get diagnostics n = row_count;
+  perform pg_temp.check('a ranking is frozen once the draft has run', n = 0);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000003'); -- bob
+  select count(*) into n from draft_picks; perform pg_temp.check('a non-member sees no draft', n = 0);
+  perform pg_temp.as_admin();
+  update leagues set draft = false where id = '10000000-0000-0000-0000-000000000007';
+end $$;
+
 -- Survivor: the pool switch, entries, picks, the never-twice rule, visibility,
 -- and the entry window. (The college league: alice is in it, bob is not yet.
 -- Its curated slate after the swaps above is c-in-1 and c-started.)

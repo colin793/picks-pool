@@ -15,6 +15,10 @@ assert.deepEqual(loaded.filter((s) => ['Survivor', 'Lock of the week', 'Duels', 
 assert.ok(!loaded.some((s) => s.title.startsWith('Entry is')));           // no fee, no money step
 assert.ok(!loaded.find((s) => s.title === 'Chat').body.includes('call a game')); // calls off: not mentioned
 assert.equal(loaded.find((s) => s.title === "Loser's duty").body, 'Last buys wings');
+const drafted = playerSteps({ ...base, draft: true, boot: true }, SPORTS.nfl);
+assert.ok(drafted.some((s) => s.title === 'The weekly draft'));
+assert.ok(drafted.some((s) => s.title === 'Boot of the Week'));
+assert.ok(!plain.some((s) => s.title === 'The weekly draft'));
 // Soccer talks in goals and matchweeks; the spread mode says so.
 const footy = playerSteps({ ...base, scoring: 'spread' }, SPORTS.epl);
 assert.match(footy[0].body, /matchweek/);

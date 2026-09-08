@@ -23,9 +23,13 @@ export const viewport = {
   viewportFit: 'cover',
 };
 
+// Runs before first paint so a chosen theme never flashes the other one.
+const themeScript = `try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}`;
+
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${body.variable} ${display.variable}`}>
+    <html lang="en" className={`${body.variable} ${display.variable}`} suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
       <body>
         <PushSetup />
         {children}

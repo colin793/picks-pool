@@ -7,6 +7,7 @@ import { applyFeatured } from './featured';
 import { featuredRows, loadSurvivor } from './league';
 import { survivorRecapFacts } from './survivor';
 import { receipts } from './calls';
+import { draftResults } from './draft';
 
 // Results recap: congratulate the winner, show the pot, lightly roast the
 // worst picker. Same text to everyone in the league: the shared roast is the
@@ -112,16 +113,28 @@ async function recapLeague(db, league, season, key, games) {
     if (lines.length) called = `Calls made in the room: ${lines.join(' ')}`;
   }
 
+  // The weekly draft, when the league runs one.
+  let drafted = '';
+  if (league.draft) {
+    const { data: dp } = await db.from('draft_picks').select('*').match({ league_id: league.id, season, slate_key: key });
+    if (dp?.length) {
+      const r = draftResults(dp, games);
+      const w = r.winners.map((x) => `${names.get(x.user_id)} (${x.wins}-${x.losses})`).join(' and ');
+      drafted = r.complete && w ? `Weekly draft: ${w} took the week with the most drafted winners.` : '';
+    }
+  }
+
   const facts = [
     `League: ${league.name}. ${label} results.`,
     `Winner${winners.length > 1 ? 's (split pot)' : ''}: ${winnerNames}, ${winners[0].correct} correct${league.lock_of_week ? ` (${winners[0].points} points with the lock)` : ''}, wins ${money(share)}${winners.length > 1 ? ' each' : ''}.`,
     `Pot: ${money(pot)} (${entries.length} entries at ${money(league.entry_fee_cents)}).`,
     lastGame ? `Tiebreaker game ${lastGame.away_abbr} @ ${lastGame.home_abbr} totaled ${actualTotal} ${unit}.` : '',
     `Full standings: ${rows.map((r) => `${names.get(r.user_id)} ${r.correct}-${r.incorrect}`).join(', ')}.`,
-    `Worst picker: ${worstName} at ${worst.correct}-${worst.incorrect}.`,
+    `Worst picker: ${worstName} at ${worst.correct}-${worst.incorrect}.${league.boot && rows.length >= 3 ? ' They wear the Boot of the Week on the board until next week ends.' : ''}`,
     worstMisses.length ? `${worstName}'s ugliest calls: ${worstMisses.join('; ')}.` : '',
     survivor,
     called,
+    drafted,
   ].filter(Boolean).join('\n');
 
   const fallback = `${label} is in the books.\n\n${facts}\n\nSee the full board in the app.`;

@@ -120,6 +120,18 @@ A members-only room per league, on its own tab. It refreshes itself every fiftee
 
 Each card shows the network under the kickoff and both records coming in, straight from the scoreboard feed. "About this matchup" folds open under the card: the room's take first (how often the room takes this team and its record doing so, your record backing and fading them, who rides them), then what ESPN's per-game summary says: last five, leaders, injuries, ESPN's projection, fetched the first time anyone opens it and cached in `game_notes` for a day, or for good once final. The room's take comes from picks you can already see, so nothing leaks. `lib/room.js` and `lib/scores/matchup.js`, both with self-checks.
 
+### The weekly draft
+
+A game beside the pick'em, switched on per league. On the Draft tab everyone ranks the week's teams (favorites on top to start) and saves; saving is what puts you in. At the week's first kickoff a snake draft runs itself from the rankings: a random order that everyone's page can reproduce from the seed, reversing each round, everyone getting the same number of teams, leftovers undrafted. Rankings stay private until then. A drafted team that wins is a point, most points takes the week, and the total margin of your winners breaks a tie. The Season tab counts weeks won; the recap names the winner. The run happens on the first visit to the tab after kickoff, with the crons as a backstop. `lib/draft.js` with a self-check; the tables are `drafts`, `draft_rankings`, `draft_picks`.
+
+### Boot of the Week
+
+Switched on per league: whoever finished last in the week that just ended wears a 🥾 next to their name on the board until this week ends. Ties share it; a week with fewer than three entries boots nobody.
+
+### Light and dark
+
+Settings has a three-way switch: match the device, light, or dark. Remembered per device and applied before the first paint, so nothing flashes.
+
 ### Room modes
 
 Three switches in Admin, all off until the commissioner flips them. **Lock of the week**: tap Lock on one of your picked games and a right pick there counts double; the entries trigger allows it only while the league plays the mode and only on one of your open games in the slate, and other players' locks stay hidden until the game kicks off. Points rank the slate and equal right picks whenever the mode is off. **Duels**: a deterministic round-robin pairs everyone who entered before the first kickoff, the board shows the head-to-heads and the Season tab keeps the records. **Loser's duty**: the commissioner's sentence, shown with the standings and pinned to whoever sits last on the Season tab. `lib/duels.js` has the pairings with a self-check.
@@ -203,6 +215,10 @@ v2 changes the schema (weeks became slates, games gained a sport and logos). The
 ## Upgrading from v2.4 to v2.5 (chat)
 
 Paste `picks-pool/supabase/migrations/2026-09-06-chat.sql` into the Supabase SQL Editor and Run.
+## Upgrading from v2.8 to v2.9 (Boot of the Week, the weekly draft, light and dark)
+
+Paste `picks-pool/supabase/migrations/2026-09-10-draft.sql` into the Supabase SQL Editor and Run. Both new modes stay off until the commissioner switches them on in Admin. The theme switch needs no SQL.
+
 ## Upgrading from v2.7 to v2.8 (the room: matchup fold, room modes, Call it, tours)
 
 Paste `picks-pool/supabase/migrations/2026-09-09-room.sql` into the Supabase SQL Editor and Run. Nothing changes for players until the commissioner switches a mode on in Admin; Call it and the matchup fold appear at once, and the tour greets each person on their next visit.

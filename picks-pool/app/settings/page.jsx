@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { sb, currentUser } from '../../lib/supabase';
 import { saveProfile, leaveLeague } from '../../lib/actions';
 import PushToggle from '../components/PushToggle';
+import ThemeToggle from '../components/ThemeToggle';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Settings' };
@@ -31,6 +32,12 @@ export default async function Settings() {
         <p className="mt-3 text-xs text-muted">Signed in as {user.email}. Your name, emoji and Venmo handle are visible to people in your leagues.</p>
         <button className="btn mt-4">Save</button>
       </form>
+
+      <section className="card mt-4">
+        <h2 className="h2 mb-1">Look</h2>
+        <p className="mb-3 text-xs text-muted">Follow your phone, or pick one. Remembered on this device.</p>
+        <ThemeToggle />
+      </section>
 
       <section className="card mt-4">
         <h2 className="h2 mb-1">Notifications</h2>

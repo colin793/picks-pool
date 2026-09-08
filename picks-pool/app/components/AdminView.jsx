@@ -32,6 +32,7 @@ function SlateRow({ g, on, started, action }) {
 export default function AdminView({ user, league, sport, members, names, inviteUrl, now, feeRows, owed, paidOut, slate = null, clock = Date.now(), hasEntries = false, lastSync = null, survivor = null, checklist = null, demo = false }) {
   const survivorReady = 'survivor' in league; // the column exists once the survivor SQL has run
   const modesReady = 'lock_of_week' in league; // and these once the room SQL has
+  const draftReady = 'draft' in league; // and these once the draft SQL has
   const inSlate = new Set((slate?.games ?? []).map((g) => g.id));
   const available = (slate?.board ?? []).filter((g) => !inSlate.has(g.id) && new Date(g.kickoff).getTime() > clock);
   return (
@@ -253,6 +254,15 @@ export default function AdminView({ user, league, sport, members, names, inviteU
               <label className="mt-2 flex items-center gap-2 text-sm"><input type="checkbox" name="lock_of_week" defaultChecked={Boolean(league.lock_of_week)} /> Lock of the week: one pick a week counts double</label>
               <label className="mt-1 flex items-center gap-2 text-sm"><input type="checkbox" name="duels" defaultChecked={Boolean(league.duels)} /> Duels: a head-to-head rival every week, everyone in turn</label>
               <label className="mt-1 flex items-center gap-2 text-sm"><input type="checkbox" name="calls" defaultChecked={league.calls !== false} /> Call it: graded predictions in Chat (changes no scores)</label>
+              {draftReady ? (
+                <>
+                  <input type="hidden" name="draft_ready" value="1" />
+                  <label className="mt-1 flex items-center gap-2 text-sm"><input type="checkbox" name="boot" defaultChecked={Boolean(league.boot)} /> Boot of the Week: last week&rsquo;s last place wears a 🥾 on the board</label>
+                  <label className="mt-1 flex items-center gap-2 text-sm"><input type="checkbox" name="draft" defaultChecked={Boolean(league.draft)} /> Weekly draft: rank the teams, the draft runs itself at the first kickoff, a Draft tab keeps score</label>
+                </>
+              ) : (
+                <p className="mt-1 text-xs text-muted">Boot of the Week and the weekly draft: run <code>supabase/migrations/2026-09-10-draft.sql</code> to unlock them.</p>
+              )}
               <label className="label">Loser&rsquo;s duty (blank for none)</label>
               <input className="input" type="text" name="duty" maxLength={120} defaultValue={league.duty ?? ''} placeholder="Last place at the end of the month buys the wings" />
             </>

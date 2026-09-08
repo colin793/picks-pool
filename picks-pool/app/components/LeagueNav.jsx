@@ -5,11 +5,12 @@ import { usePathname } from 'next/navigation';
 import { Icon } from './icons';
 
 // One nav definition, two renderings: sidebar on desktop, tab bar on phones.
-export function navItems(base, isCommish, survivor = false) {
+export function navItems(base, isCommish, survivor = false, draft = false) {
   const items = [
     { href: base, label: 'Picks', icon: 'picks', exact: true },
     { href: `${base}/board`, label: 'This week', icon: 'board' },
     ...(survivor ? [{ href: `${base}/survivor`, label: 'Survivor', icon: 'survivor' }] : []),
+    ...(draft ? [{ href: `${base}/draft`, label: 'Draft', icon: 'draft' }] : []),
     { href: `${base}/season`, label: 'Season', icon: 'season' },
     { href: `${base}/chat`, label: 'Chat', icon: 'chat' },
   ];
@@ -21,11 +22,11 @@ function isOn(pathname, item) {
   return item.exact ? pathname === item.href : pathname.startsWith(item.href);
 }
 
-export function SidebarNav({ base, isCommish, slateLabel, survivor = false }) {
+export function SidebarNav({ base, isCommish, slateLabel, survivor = false, draft = false }) {
   const pathname = usePathname();
   return (
     <nav className="flex flex-col gap-1">
-      {navItems(base, isCommish, survivor).map((it) => {
+      {navItems(base, isCommish, survivor, draft).map((it) => {
         const I = Icon[it.icon];
         const on = isOn(pathname, it);
         return (
@@ -46,9 +47,10 @@ export function SidebarNav({ base, isCommish, slateLabel, survivor = false }) {
   );
 }
 
-export function TabBar({ base, isCommish, survivor = false }) {
+export function TabBar({ base, isCommish, survivor = false, draft = false }) {
   const pathname = usePathname();
-  const items = navItems(base, isCommish, survivor);
+  const items = navItems(base, isCommish, survivor, draft);
+  const tight = items.length > 5; // every mode on: smaller labels so seven tabs fit a phone
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 backdrop-blur lg:hidden"
@@ -63,7 +65,7 @@ export function TabBar({ base, isCommish, survivor = false }) {
               key={it.href}
               href={it.href}
               aria-current={on ? 'page' : undefined}
-              className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${on ? 'text-accent' : 'text-muted'}`}
+              className={`flex flex-col items-center gap-0.5 py-2 font-semibold ${tight ? 'text-[10px]' : 'text-[11px]'} ${on ? 'text-accent' : 'text-muted'}`}
             >
               <I />
               {it.label}
