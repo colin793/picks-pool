@@ -57,7 +57,7 @@ export default async function Admin({ params }) {
       const games = (allGames ?? []).filter((g) => g.slate_key === key);
       const entries = (allEntries ?? []).filter((e) => e.slate_key === key);
       const ids = new Set(entries.map((e) => e.id));
-      const r = slateResults(games, entries, (allPicks ?? []).filter((p) => ids.has(p.entry_id)), { scoring: league.scoring });
+      const r = slateResults(games, entries, (allPicks ?? []).filter((p) => ids.has(p.entry_id)), { scoring: league.scoring, lock: Boolean(league.lock_of_week) });
       if (r.complete && r.winners.length) {
         const { pot, share } = potFor(entries, league.entry_fee_cents, r.winners);
         owed.push({

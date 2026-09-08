@@ -30,6 +30,7 @@ function SlateRow({ g, on, started, action }) {
 // survivor: { season, rows, pot, share, complete, winners, paid } when the pool is on; null otherwise.
 export default function AdminView({ user, league, sport, members, names, inviteUrl, now, feeRows, owed, paidOut, slate = null, clock = Date.now(), hasEntries = false, lastSync = null, survivor = null }) {
   const survivorReady = 'survivor' in league; // the column exists once the survivor SQL has run
+  const modesReady = 'lock_of_week' in league; // and these once the room SQL has
   const inSlate = new Set((slate?.games ?? []).map((g) => g.id));
   const available = (slate?.board ?? []).filter((g) => !inSlate.has(g.id) && new Date(g.kickoff).getTime() > clock);
   return (
@@ -224,6 +225,18 @@ export default function AdminView({ user, league, sport, members, names, inviteU
             </>
           ) : (
             <p className="mt-3 text-xs text-muted">Survivor pool: run <code>supabase/migrations/2026-09-08-survivor.sql</code> in the Supabase SQL Editor to unlock it here.</p>
+          )}
+          {modesReady ? (
+            <>
+              <h3 className="eyebrow mt-4">Room modes</h3>
+              <p className="mt-1 text-xs text-muted">All off to start. The first two change how weeks score, so settle them with the room before flipping them mid-season.</p>
+              <label className="mt-2 flex items-center gap-2 text-sm"><input type="checkbox" name="lock_of_week" defaultChecked={Boolean(league.lock_of_week)} /> Lock of the week: one pick a week counts double</label>
+              <label className="mt-1 flex items-center gap-2 text-sm"><input type="checkbox" name="duels" defaultChecked={Boolean(league.duels)} /> Duels: a head-to-head rival every week, everyone in turn</label>
+              <label className="label">Loser&rsquo;s duty (blank for none)</label>
+              <input className="input" type="text" name="duty" maxLength={120} defaultValue={league.duty ?? ''} placeholder="Last place at the end of the month buys the wings" />
+            </>
+          ) : (
+            <p className="mt-3 text-xs text-muted">Room modes (lock of the week, duels, loser&rsquo;s duty): run <code>supabase/migrations/2026-09-09-room.sql</code> in the Supabase SQL Editor to unlock them here.</p>
           )}
           <label className="label">Your Venmo handle (entry fees go here)</label>
           <input className="input" type="text" name="venmo" defaultValue={league.venmo_handle} placeholder="@your-venmo" />

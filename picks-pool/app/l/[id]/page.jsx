@@ -57,7 +57,7 @@ export default async function PicksPage({ params }) {
     const prev = slates.find((s) => s.key < slate.key); // newest first, so the first older key is the last slate
     if (prev) {
       const last = await loadSlate(db, league, slate.season, prev.key);
-      const text = wrapText(slateResults(last.games, last.entries, last.picks, { scoring: league.scoring }), user.id, last.names, league.entry_fee_cents, prev.label);
+      const text = wrapText(slateResults(last.games, last.entries, last.picks, { scoring: league.scoring, lock: Boolean(league.lock_of_week) }), user.id, last.names, league.entry_fee_cents, prev.label);
       if (text) wrap = { key: prev.key, text };
     }
   }
@@ -123,6 +123,7 @@ export default async function PicksPage({ params }) {
           entryCount={entries.length}
           scoring={league.scoring}
           takes={takes}
+          lockMode={Boolean(league.lock_of_week)}
         />
       )}
     </>

@@ -51,6 +51,12 @@ create table public.leagues (
   -- Survivor pool beside the pick'em: on/off, and its once-a-season buy-in.
   survivor boolean not null default false,
   survivor_fee_cents int not null default 1000,
+  -- Room modes, the commissioner's switches, all off to start. lock_of_week:
+  -- one pick a week counts double. duels: weekly head-to-head pairings beside
+  -- the standings. duty: the loser's duty, in the commissioner's words.
+  lock_of_week boolean not null default false,
+  duels boolean not null default false,
+  duty text not null default '',
   recap_enabled boolean not null default true,
   reminders_enabled boolean not null default true,
   commissioner uuid not null references public.profiles(id),
@@ -146,6 +152,7 @@ create table public.entries (
   season int not null,
   slate_key text not null,
   tiebreaker int,                    -- predicted total points, final game of the slate
+  lock_game_id text references public.games, -- lock of the week: one picked game counts double
   paid boolean not null default false,
   created_at timestamptz not null default now(),
   unique (league_id, user_id, season, slate_key)
@@ -382,13 +389,21 @@ $$;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Guard entry updates: only the commissioner flips paid; tiebreaker locks at the
--- slate's final kickoff; nobody moves an entry to another league/user/slate.
+-- Guard entries: only the commissioner flips paid; the tiebreaker locks at the
+-- slate's final kickoff; nobody moves an entry to another league/user/slate;
+-- the lock of the week is one of your open games, set only while the league
+-- plays the mode and neither the old nor the new lock has kicked off.
 -- Service role (server jobs) bypasses.
 create function public.entries_guard() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if auth.role() = 'service_role' or auth.uid() is null then
+    return new;
+  end if;
+  if tg_op = 'INSERT' then
+    if new.lock_game_id is not null then
+      raise exception 'Enter first, then choose a lock';
+    end if;
     return new;
   end if;
   if new.league_id <> old.league_id or new.user_id <> old.user_id
@@ -402,10 +417,21 @@ begin
      and now() > slate_lock_at(old.league_id, old.season, old.slate_key) then
     raise exception 'Tiebreaker is locked';
   end if;
+  if new.lock_game_id is distinct from old.lock_game_id then
+    if not exists (select 1 from leagues where id = old.league_id and lock_of_week) then
+      raise exception 'This league does not play a lock of the week';
+    end if;
+    if old.lock_game_id is not null and exists (select 1 from games where id = old.lock_game_id and kickoff <= now()) then
+      raise exception 'Your lock has kicked off';
+    end if;
+    if new.lock_game_id is not null and not pick_open(old.id, new.lock_game_id) then
+      raise exception 'A lock must be one of your open games this week';
+    end if;
+  end if;
   return new;
 end;
 $$;
-create trigger entries_guard before update on public.entries
+create trigger entries_guard before insert or update on public.entries
   for each row execute function public.entries_guard();
 
 -- A league's sport is fixed at creation: entries and picks are keyed to it.
@@ -587,14 +613,19 @@ create policy push_subscriptions_delete on public.push_subscriptions for delete 
   using (user_id = auth.uid());
 
 -- Leaderboard view: other players' tiebreaker stays null until the slate's
--- final game has kicked off.
+-- final game has kicked off, and their lock until its game kicks off.
 create view public.entries_board with (security_invoker = on) as
 select e.id, e.league_id, e.user_id, e.season, e.slate_key, e.paid, e.created_at,
   case
     when e.user_id = auth.uid() then e.tiebreaker
     when now() >= slate_lock_at(e.league_id, e.season, e.slate_key) then e.tiebreaker
     else null
-  end as tiebreaker
+  end as tiebreaker,
+  case
+    when e.user_id = auth.uid() then e.lock_game_id
+    when exists (select 1 from games g where g.id = e.lock_game_id and g.kickoff <= now()) then e.lock_game_id
+    else null
+  end as lock_game_id
 from public.entries e;
 
 -- Accounts that already exist in auth.users (an upgrade from v1, or a reset)

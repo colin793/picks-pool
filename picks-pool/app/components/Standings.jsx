@@ -2,7 +2,7 @@ import { money } from '../../lib/stats';
 import { FlashPill } from './Flash';
 
 // Standings for one slate. rows from slateResults(); names: user_id -> profile.
-export default function Standings({ rows, names, me, live, complete, winners = [], feeCents, showFees = true }) {
+export default function Standings({ rows, names, me, live, complete, winners = [], feeCents, showFees = true, lock = false }) {
   const won = new Set(winners.map((w) => w.id));
   return (
     <div className="overflow-x-auto">
@@ -11,6 +11,7 @@ export default function Standings({ rows, names, me, live, complete, winners = [
           <tr>
             <th className="w-8">#</th>
             <th>Player</th>
+            {lock && <th className="text-right" title="Right, plus one when your lock hit">Pts</th>}
             <th className="text-right">Right</th>
             <th className="text-right">Wrong</th>
             {live > 0 && <th className="text-right" title="Picks currently ahead in games in progress">Leading</th>}
@@ -29,6 +30,7 @@ export default function Standings({ rows, names, me, live, complete, winners = [
                   <span className="mr-1.5">{p?.emoji}</span>{p?.display_name ?? 'Player'}
                   {complete && won.has(r.id) && <span className="pill pill-good ml-2">Winner</span>}
                 </td>
+                {lock && <td className="num text-right text-base">{r.points}{r.lockHit ? <span className="ml-0.5 text-xs" title="Lock hit">🔒</span> : ''}</td>}
                 <td className="num text-right text-base text-good">
                   <FlashPill value={r.correct} color="rgb(var(--good-rgb))" soft={!mine} className="rounded px-1">{r.correct}</FlashPill>
                 </td>

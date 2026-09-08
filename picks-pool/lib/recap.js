@@ -69,7 +69,7 @@ async function recapLeague(db, league, season, key, games) {
   const label = games[0]?.slate_label ?? key;
   const { unit, draws } = sportOf(league.sport);
   const scoring = league.scoring ?? 'straight';
-  const { rows, winners, actualTotal, lastGame } = slateResults(games, entries, picks ?? [], { scoring });
+  const { rows, winners, actualTotal, lastGame } = slateResults(games, entries, picks ?? [], { scoring, lock: Boolean(league.lock_of_week) });
   const { pot, share } = potFor(entries, league.entry_fee_cents, winners);
   const winnerNames = winners.map((w) => names.get(w.user_id)).join(' and ');
 
@@ -105,7 +105,7 @@ async function recapLeague(db, league, season, key, games) {
 
   const facts = [
     `League: ${league.name}. ${label} results.`,
-    `Winner${winners.length > 1 ? 's (split pot)' : ''}: ${winnerNames}, ${winners[0].correct} correct, wins ${money(share)}${winners.length > 1 ? ' each' : ''}.`,
+    `Winner${winners.length > 1 ? 's (split pot)' : ''}: ${winnerNames}, ${winners[0].correct} correct${league.lock_of_week ? ` (${winners[0].points} points with the lock)` : ''}, wins ${money(share)}${winners.length > 1 ? ' each' : ''}.`,
     `Pot: ${money(pot)} (${entries.length} entries at ${money(league.entry_fee_cents)}).`,
     lastGame ? `Tiebreaker game ${lastGame.away_abbr} @ ${lastGame.home_abbr} totaled ${actualTotal} ${unit}.` : '',
     `Full standings: ${rows.map((r) => `${names.get(r.user_id)} ${r.correct}-${r.incorrect}`).join(', ')}.`,

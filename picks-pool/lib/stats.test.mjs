@@ -157,6 +157,27 @@ assert.deepEqual(rd.winners.map((w) => w.user_id), ['colin']);
 assert.equal(rd.rows.find((r) => r.user_id === 'colin').correct, 2);
 assert.equal(rd.rows.find((r) => r.user_id === 'kevin').correct, 1);
 
+// ---- lock of the week: one pick counts double, only when the league plays it ----
+const locked = entries.map((e) => (e.user_id === 'kevin' ? { ...e, lock_game_id: 'a' } : e.user_id === 'colin' ? { ...e, lock_game_id: 'd' } : e));
+const rl = slateResults(games, locked, picks, { lock: true });
+const byL = Object.fromEntries(rl.rows.map((x) => [x.user_id, x]));
+assert.equal(byL.kevin.points, 3);      // 2 right, lock on a hit
+assert.equal(byL.kevin.lockHit, true);
+assert.equal(byL.colin.points, 2);      // lock on d, which colin got wrong
+assert.equal(byL.colin.lockHit, false);
+assert.equal(byL.kevin.rank, 1);
+assert.equal(byL.colin.rank, 2);
+assert.deepEqual(rl.winners.map((w) => w.user_id), ['kevin']); // outright, no tiebreaker needed
+// Off: the same rows score exactly as before.
+const roff = slateResults(games, locked, picks);
+assert.equal(roff.rows.find((x) => x.user_id === 'kevin').points, 2);
+assert.equal(roff.rows.find((x) => x.user_id === 'kevin').lockHit, false);
+assert.deepEqual(roff.winners.map((w) => w.user_id), ['colin']);
+// The season keeps a tally of lock hits and points.
+const sl = seasonStats(games, locked, picks, [], { lock: true }).find((x) => x.user_id === 'kevin');
+assert.equal(sl.points, 3);
+assert.equal(sl.locks, 1);
+
 // ---- ties and missing picks, stated plainly ----
 // A tie is decided, so it counts against everyone who picked a side, and the
 // game nobody picked counts against them too. Neither ever scores a point.

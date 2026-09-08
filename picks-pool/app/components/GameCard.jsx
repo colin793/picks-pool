@@ -11,7 +11,8 @@ import MatchupFold from './MatchupFold';
 // One matchup. `pick` is 'HOME' | 'AWAY' | undefined; `onPick(side)` when open.
 // `consensus` is { HOME, AWAY, TIE, total } for a locked game (everyone's
 // picks are visible once it kicks off); undefined before that.
-export default function GameCard({ game: g, pick, onPick, now, draws = false, homeFirst = false, consensus, scoring = 'straight', take = null, demo = false }) {
+// lockMode: the league plays a lock of the week; isLock: this game is the viewer's lock; onLock(): toggle it.
+export default function GameCard({ game: g, pick, onPick, now, draws = false, homeFirst = false, consensus, scoring = 'straight', take = null, demo = false, lockMode = false, isLock = false, onLock = null }) {
   const locked = new Date(g.kickoff).getTime() <= now;
   const final = g.state === 'post';
   const live = g.state === 'in';
@@ -133,6 +134,11 @@ export default function GameCard({ game: g, pick, onPick, now, draws = false, ho
           )}
           {locked && !pickedAbbr && <span className="ml-2">no pick</span>}
         </span>
+        {lockMode && isLock && (locked || !onLock) && <span className="pill pill-warn" title="Your lock of the week: counts double">🔒 Lock</span>}
+        {lockMode && !locked && pick && onLock && (
+          <button type="button" onClick={onLock} aria-pressed={isLock} title="Lock of the week: this pick counts double"
+            className={`pill ${isLock ? 'pill-warn' : 'pill-muted hover:border-ink2/40'}`}>{isLock ? '🔒 Locked' : 'Lock'}</button>
+        )}
         {!final && !live && locked && <span className="pill pill-muted">Locked</span>}
         {!locked && !pick && onPick && <span className="shrink-0">Pick one</span>}
       </div>

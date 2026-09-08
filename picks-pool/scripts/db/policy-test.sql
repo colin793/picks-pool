@@ -463,6 +463,55 @@ do $$ declare n int; ok boolean; begin
   perform pg_temp.as_admin();
 end $$;
 
+-- Lock of the week: off by default, the commissioner's switch, one of your
+-- own open games, frozen once it kicks off. (The college league; alice's
+-- entry is on Week 2 with c-in-1 open and c-started underway.)
+do $$ declare ok boolean; n int; g text; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  begin
+    update entries set lock_game_id = 'c-in-1' where id = '20000000-0000-0000-0000-000000000007'; ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('no lock while the league does not play the mode', ok);
+  begin
+    update leagues set lock_of_week = true where id = '10000000-0000-0000-0000-000000000007'; ok := false;
+  exception when others then ok := true; end;
+  select lock_of_week into ok from leagues where id = '10000000-0000-0000-0000-000000000007';
+  perform pg_temp.check('a player cannot switch the mode on', ok is not true);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- commissioner
+  update leagues set lock_of_week = true where id = '10000000-0000-0000-0000-000000000007';
+  get diagnostics n = row_count;
+  perform pg_temp.check('the commissioner switches the lock of the week on', n = 1);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  begin
+    update entries set lock_game_id = 'c-in-1' where id = '20000000-0000-0000-0000-000000000007'; ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('a lock on one of your open games is accepted', ok);
+  begin
+    update entries set lock_game_id = 'c-started' where id = '20000000-0000-0000-0000-000000000007'; ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a lock on a started game is refused', ok);
+  begin
+    update entries set lock_game_id = 'c-out' where id = '20000000-0000-0000-0000-000000000007'; ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a lock outside the curated slate is refused', ok);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- the commissioner looks at alice's entry
+  select lock_game_id into g from entries_board where id = '20000000-0000-0000-0000-000000000007';
+  perform pg_temp.check('another player''s lock is hidden until its game kicks off', g is null);
+  perform pg_temp.as_admin();
+  update entries set lock_game_id = 'c-started' where id = '20000000-0000-0000-0000-000000000007'; -- as if it had been set before kickoff
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  begin
+    update entries set lock_game_id = 'c-in-1' where id = '20000000-0000-0000-0000-000000000007'; ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a lock cannot move once its game has kicked off', ok);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001');
+  select lock_game_id into g from entries_board where id = '20000000-0000-0000-0000-000000000007';
+  perform pg_temp.check('...and is visible to the league once it has', g = 'c-started');
+  perform pg_temp.as_admin();
+  update leagues set lock_of_week = false where id = '10000000-0000-0000-0000-000000000007';
+  update entries set lock_game_id = null where id = '20000000-0000-0000-0000-000000000007';
+end $$;
+
 -- Survivor: the pool switch, entries, picks, the never-twice rule, visibility,
 -- and the entry window. (The college league: alice is in it, bob is not yet.
 -- Its curated slate after the swaps above is c-in-1 and c-started.)

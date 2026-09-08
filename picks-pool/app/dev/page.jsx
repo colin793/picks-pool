@@ -61,9 +61,16 @@ export default function Preview({ searchParams }) {
         <Link href="/dev?view=survivor" className="underline">survivor</Link>
         <Link href="/dev?view=moments" className="underline">moments</Link>
         <Link href="/dev?view=moments&won=1" className="underline">won</Link>
+        <Link href="/dev?view=modes" className="underline">modes</Link>
         {['picks', 'board'].includes(view) && <DevBump />}
       </div>
-      {view === 'moments' ? (
+      {view === 'modes' ? (
+        // The board with the room modes on: a points column with locks, the duels card, the loser's duty.
+        <BoardView league={{ ...LEAGUE, lock_of_week: true, duels: true, duty: 'Last place at the end of the month buys the wings' }} sport={sport} label={slate.label} isCurrent
+          slates={[{ key: slate.key, label: 'Demo Week' }, { key: '2026-1-99', label: 'Last week' }]} slateKey={slate.key} games={games}
+          entries={ENTRIES.map((e) => ({ ...e, lock_game_id: { 'u-colin': 'f2', 'u-kevin': 'f3', 'u-sam': 'l1', 'u-jess': 'f1' }[e.user_id] ?? null }))}
+          picks={picks} names={NAMES} me={me} now={NOW} shareUrl="/dev/share" demo />
+      ) : view === 'moments' ? (
         // The board with everything but Monday night final and the top tied: the finale line,
         // the rivalry line, an upset chip. ?won=1 finishes Monday night with Colin winning: confetti.
         (() => {
@@ -172,8 +179,8 @@ export default function Preview({ searchParams }) {
             <span className="pill pill-good">Entry paid</span>
           </div>
           <PicksForm leagueId={LEAGUE.id} season={2026} slate={slate.key} games={games} initialPicks={myPicks}
-            initialTiebreaker={myEntry.tiebreaker} entry={myEntry} unit={sport.unit} fixedNow={NOW}
-            allPicks={picks} entryCount={ENTRIES.length} demo
+            initialTiebreaker={myEntry.tiebreaker} entry={{ ...myEntry, lock_game_id: 'o1' }} unit={sport.unit} fixedNow={NOW}
+            allPicks={picks} entryCount={ENTRIES.length} demo lockMode
             takes={(() => { const t = roomTake([...SURVIVOR_PREV, ...games], ENTRIES, picks, me); const o = {};
               for (const g of games) for (const a of [g.home_abbr, g.away_abbr]) o[a] = takeText(a, t.get(a), { me, names: NAMES }); return o; })()} />
         </>
