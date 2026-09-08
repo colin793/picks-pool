@@ -4,6 +4,8 @@ import PickGrid from './PickGrid';
 import SlatePicker from './SlatePicker';
 import ShareButton from './ShareButton';
 import Projections from './Projections';
+import { rivalryText, finaleText } from '../../lib/moments';
+import { Confetti } from './Pops';
 
 // The "This week" page body. Server page and /dev preview both render this.
 export default function BoardView({ league, sport, label, isCurrent, slates, slateKey, games, entries, picks, names, me, now = Date.now(), shareUrl = null, reactions = [], demo = false }) {
@@ -11,9 +13,13 @@ export default function BoardView({ league, sport, label, isCurrent, slates, sla
   const { rows, complete, winners, actualTotal, lastGame, live, finals } = slateResults(games, entries, picks, { scoring });
   const { pot, share } = potFor(entries, league.entry_fee_cents, winners);
   const started = games.filter((g) => new Date(g.kickoff).getTime() <= now).length;
+  const rivalry = rivalryText(rows, me, names);
+  const finale = isCurrent && !complete ? finaleText(games, entries, picks, names, { scoring, homeFirst: Boolean(sport.homeFirst), me }) : null;
+  const iWon = complete && winners.some((w) => w.user_id === me);
 
   return (
     <>
+      {iWon && !demo && <Confetti id={`won-${league.id}-${slateKey}`} />}
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="eyebrow">{sport.name} · {isCurrent ? 'current slate' : 'past slate'}{scoring === 'spread' ? ' · against the spread' : ''}</p>
@@ -54,9 +60,17 @@ export default function BoardView({ league, sport, label, isCurrent, slates, sla
         </div>
       </div>
 
+      {finale && (
+        <div className="mb-4 rounded-xl border border-warn/40 bg-warnsoft px-4 py-3">
+          <div className="font-display text-lg font-bold leading-tight text-warn">{finale.title}</div>
+          <div className="text-sm text-ink2">{finale.text}</div>
+        </div>
+      )}
+
       <section className="card mb-4">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="h2">Standings</h2>
+          {rivalry && !complete && <span className="text-xs font-semibold text-ink2">{rivalry}</span>}
           {live > 0 && <span className="pill pill-warn">Live</span>}
         </div>
         <Standings rows={rows} names={names} me={me} live={live} complete={complete} winners={winners} feeCents={league.entry_fee_cents} />

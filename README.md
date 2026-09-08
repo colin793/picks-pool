@@ -116,6 +116,10 @@ Before kickoff: the line as ESPN carries it ("KC -3.5 · O/U 47.5") and the weat
 ### Chat
 
 A members-only room per league, on its own tab. It refreshes itself every fifteen seconds, you can delete your own messages, and the commissioner can delete anyone's. No notifications for chat, on purpose: the two push alerts stay rare.
+### The little pops
+
+Small moments, all front end: a countdown to the next lock on the submit bar (amber inside an hour, red inside ten minutes); a check-mark and "You're in, 13 to go" on your first pick of the week; a grid cell that turns over on the first refresh after its game kicks off; an "Upset" chip when the dog by a real line wins outright, with the grid marking everyone who called it; a rivalry line on the standings ("1 behind Kevin"); "Comes down to the finale" when the top is tied with one game left, tracking the running total; a sweat strip on the Survivor tab while your team plays; one burst of confetti the first time you open a board you won; and a dismissible "Week 2 is in the books" line on the Picks tab until the next kickoff. The words come from `lib/moments.js` with their own self-check; `/dev?view=moments` and `/dev?view=moments&won=1` show them on fixture data.
+
 ### Survivor
 
 A second game on the same slate, switched on per league in Admin: pick one team a week to win outright, never the same team twice, lose (or tie, or forget) and you are out. Its own buy-in, once a season, with the pot going to the last one standing; if the last few fall in the same week they split it. Straight up whatever the pick'em scores by. The first pick anyone makes opens the pool, and entries close when that week's last game kicks off, so nobody sneaks in with fewer weeks to survive. Picks stay hidden until their game starts, same as the pick'em. The Survivor tab shows your seat, the teams you have burned, and everyone's road; the Picks tab nudges you when you have no team yet. The rules live in `lib/survivor.js` with their own self-check, and the database enforces every one of them (`survivor_entries`, `survivor_picks`).

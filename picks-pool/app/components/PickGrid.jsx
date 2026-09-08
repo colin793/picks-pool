@@ -1,6 +1,8 @@
 import { FlashPill } from './Flash';
 import { outcome, ahead as aheadOf } from '../../lib/stats';
 import ReactCell from './ReactCell';
+import { RevealCell } from './Pops';
+import { isUpset } from '../../lib/moments';
 
 // Everyone's picks, one row per player, one column per game. RLS decides
 // what is visible: your own picks always, others' once the game kicks off,
@@ -64,18 +66,22 @@ export default function PickGrid({ games, rows, picks, names, me, now = Date.now
                   const push = final && result === 'TIE' && !draws;
                   const lost = final && result && !won && !push;
                   const ahead = g.state === 'in' && aheadOf(g, scoring) === side;
+                  const calledUpset = won && isUpset(g);
                   return (
                     <td key={g.id} className="p-1 text-center">
-                      {/* Flashes when this game's score changes: your row in team color, others quietly. */}
+                      {/* Flashes when this game's score changes: your row in team color, others quietly.
+                          Turns over on the first refresh after kickoff, when the pick stops being a dot. */}
+                      <RevealCell kickoff={g.kickoff} now={now}>
                       <FlashPill
                         value={`${g.state}:${g.home_score}-${g.away_score}`} color={color} soft={r.user_id !== me}
                         className={`inline-block min-w-[38px] rounded px-1.5 py-1 font-display text-xs font-bold tracking-wide
-                          ${won ? 'bg-goodsoft text-good ring-1 ring-good/40' : lost ? 'bg-badsoft text-bad opacity-70' : ahead ? 'bg-accent/10 text-accent ring-1 ring-accent/50' : 'bg-surface2 text-ink2'}`}
+                          ${calledUpset ? 'bg-warnsoft text-warn ring-2 ring-warn/60' : won ? 'bg-goodsoft text-good ring-1 ring-good/40' : lost ? 'bg-badsoft text-bad opacity-70' : ahead ? 'bg-accent/10 text-accent ring-1 ring-accent/50' : 'bg-surface2 text-ink2'}`}
                         style={!final && color ? { boxShadow: `inset 0 -3px 0 ${color}` } : undefined}
-                        title={won ? 'Correct' : push ? 'Push' : lost ? 'Wrong' : ahead ? 'Leading' : ''}
+                        title={calledUpset ? 'Called the upset' : won ? 'Correct' : push ? 'Push' : lost ? 'Wrong' : ahead ? 'Leading' : ''}
                       >
                         {abbr}
                       </FlashPill>
+                      </RevealCell>
                       {started && <ReactCell leagueId={leagueId} entryId={r.id} gameId={g.id} demo={demo} {...(rx.get(`${r.id}:${g.id}`) ?? {})} />}
                     </td>
                   );

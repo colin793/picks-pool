@@ -115,3 +115,12 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* The little pops. A revealed pick turns over; a first pick draws its check;
+   a survivor team that is trailing breathes red. Reduced motion (above) stops all three. */
+@keyframes flip-in { 0% { transform: rotateX(90deg); opacity: 0; } 100% { transform: rotateX(0); opacity: 1; } }
+.flip-in { animation: flip-in .5s cubic-bezier(.2,.8,.2,1) both; transform-origin: center; backface-visibility: hidden; }
+@keyframes check-draw { 0% { stroke-dashoffset: 30; } 100% { stroke-dashoffset: 0; } }
+.check-pop path { stroke-dasharray: 30; animation: check-draw .5s ease-out .1s both; }
+@keyframes sweat { 0%, 100% { box-shadow: 0 0 0 0 rgb(var(--bad-rgb) / 0); } 50% { box-shadow: 0 0 0 4px rgb(var(--bad-rgb) / .3); } }
+.sweat-down { animation: sweat 1.6s ease-in-out infinite; }

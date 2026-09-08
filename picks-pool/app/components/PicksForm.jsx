@@ -5,6 +5,8 @@ import { savePicks, withdrawEntry } from '../../lib/actions';
 import GameCard from './GameCard';
 import { useNow } from './LocalTime';
 import { outcome } from '../../lib/stats';
+import { countdown } from '../../lib/moments';
+import { CheckPop } from './Pops';
 
 // Group games by their Eastern calendar day: "Thursday, Sep 10".
 function dayOf(iso) {
@@ -57,9 +59,13 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
   const [shown, setShown] = useState(() => new Set());
   const toggle = (day) => setShown((prev) => { const next = new Set(prev); next.has(day) ? next.delete(day) : next.add(day); return next; });
 
+  // The next lock as a countdown once it is inside a day; amber inside an hour, red inside ten minutes.
+  const cd = countdown(games, now);
   const status = msg
-    ? <span className={msg.kind === 'ok' ? 'text-good' : msg.kind === 'warn' ? 'text-warn' : 'text-bad'}>{msg.text}</span>
-    : <>{pickedOpen} of {openGames.length} open picked. Games lock at kickoff.{vegas != null && <span className="lg:hidden"> Vegas says {vegas} on the tiebreaker.</span>}</>;
+    ? <span className={`inline-flex items-center gap-1 ${msg.kind === 'ok' ? 'text-good' : msg.kind === 'warn' ? 'text-warn' : 'text-bad'}`}>{msg.first && <CheckPop />}{msg.text}</span>
+    : <>{pickedOpen} of {openGames.length} open picked. {cd
+        ? <span className={`font-semibold ${cd.tone === 'urgent' ? 'text-bad' : cd.tone === 'warn' ? 'text-warn' : 'text-ink2'}`}>{cd.text}.</span>
+        : 'Games lock at kickoff.'}{vegas != null && <span className="lg:hidden"> Vegas says {vegas} on the tiebreaker.</span>}</>;
 
   function submit() {
     if (!entered && Object.keys(picks).length === 0) {
@@ -73,6 +79,10 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
         if (r.refused.length) {
           const names = r.refused.map((id) => { const g = games.find((x) => x.id === id); return g ? `${g.away_abbr} @ ${g.home_abbr}` : id; });
           setMsg({ kind: 'warn', text: `${r.saved} pick${r.saved === 1 ? '' : 's'} saved. Already kicked off, not saved: ${names.join(', ')}.` });
+        } else if (!entered) {
+          // The click: a first pick of the week is a commitment, and it should feel like one.
+          const left = openGames.length - openGames.filter((g) => picks[g.id]).length;
+          setMsg({ kind: 'ok', first: true, text: `You're in. ${left ? `${left} to go.` : 'Every open game picked.'}` });
         } else {
           setMsg({ kind: 'ok', text: `${r.saved} pick${r.saved === 1 ? '' : 's'} saved${r.tiebreaker ? ', tiebreaker too' : ''}.` });
         }
