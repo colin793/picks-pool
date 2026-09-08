@@ -561,6 +561,16 @@ do $$ declare ok boolean; n int; cid uuid; begin
   update leagues set calls = true where id = '10000000-0000-0000-0000-000000000007';
 end $$;
 
+-- Tours: you mark your own walkthrough done, and nobody else's.
+do $$ declare n int; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  update profiles set tours = '{"player": "2026-09-09"}' where id = '00000000-0000-0000-0000-000000000002'; get diagnostics n = row_count;
+  perform pg_temp.check('you can mark your own tour done', n = 1);
+  update profiles set tours = '{"player": "never"}' where id = '00000000-0000-0000-0000-000000000001'; get diagnostics n = row_count;
+  perform pg_temp.check('you cannot touch anyone else''s tours', n = 0);
+  perform pg_temp.as_admin();
+end $$;
+
 -- Survivor: the pool switch, entries, picks, the never-twice rule, visibility,
 -- and the entry window. (The college league: alice is in it, bob is not yet.
 -- Its curated slate after the swaps above is c-in-1 and c-started.)

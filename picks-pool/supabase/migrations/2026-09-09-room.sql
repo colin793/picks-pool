@@ -128,3 +128,8 @@ create policy calls_insert on public.calls for insert to authenticated
   with check (user_id = auth.uid() and call_open(league_id, game_id));
 create policy calls_delete on public.calls for delete to authenticated
   using ((user_id = auth.uid() and exists (select 1 from games g where g.id = game_id and g.kickoff > now())) or is_commissioner(league_id));
+
+-- ---------- first-time tours ----------
+-- Which walkthroughs a person has finished: {"player": "<when>", "commish": "<when>"}.
+-- Kept on the profile so a second phone does not start the tour over.
+alter table public.profiles add column if not exists tours jsonb not null default '{}'::jsonb;

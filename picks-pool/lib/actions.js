@@ -414,6 +414,22 @@ export async function react(leagueId, entryId, gameId, emoji) {
   revalidatePath(`/l/${leagueId}/board`);
 }
 
+// ---------- tours ----------
+
+// Remember a finished walkthrough on the profile ('player' or 'commish');
+// reset: true forgets it so the tour runs again. RLS: your own row.
+export async function markTour(kind, reset = false) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  if (!['player', 'commish'].includes(kind)) return;
+  const db = sb();
+  const { data } = await db.from('profiles').select('tours').eq('id', user.id).maybeSingle();
+  const tours = { ...(data?.tours ?? {}) };
+  if (reset) delete tours[kind]; else tours[kind] = new Date().toISOString();
+  await db.from('profiles').update({ tours }).eq('id', user.id);
+  revalidatePath('/', 'layout');
+}
+
 // ---------- profile ----------
 
 export async function saveProfile(formData) {

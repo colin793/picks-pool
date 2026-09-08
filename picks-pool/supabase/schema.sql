@@ -32,7 +32,8 @@ create table public.profiles (
   email text not null default '',
   display_name text not null default '',
   emoji text not null default '🏈',
-  venmo_handle text not null default ''
+  venmo_handle text not null default '',
+  tours jsonb not null default '{}'::jsonb -- walkthroughs finished: {"player": "<when>", "commish": "<when>"}
 );
 
 create table public.leagues (

@@ -1,7 +1,7 @@
 import { money, venmoLink } from '../../lib/stats';
 import {
   updateLeague, setPaid, recordPayout, undoPayout, regenerateInvite,
-  transferLeague, deleteLeague, removeMember, setFeatured, resetFeatured, syncNow, setSurvivorPaid, withdrawSurvivor,
+  transferLeague, deleteLeague, removeMember, setFeatured, resetFeatured, syncNow, setSurvivorPaid, withdrawSurvivor, markTour,
 } from '../../lib/actions';
 import { outText } from '../../lib/survivor';
 import { rankedAbbr } from '../../lib/featured';
@@ -28,7 +28,8 @@ function SlateRow({ g, on, started, action }) {
 
 // The Admin page body. The server page computes the money state; /dev feeds fixtures.
 // survivor: { season, rows, pot, share, complete, winners, paid } when the pool is on; null otherwise.
-export default function AdminView({ user, league, sport, members, names, inviteUrl, now, feeRows, owed, paidOut, slate = null, clock = Date.now(), hasEntries = false, lastSync = null, survivor = null }) {
+// checklist: the first-time setup list from lib/tour.js, or null once hidden.
+export default function AdminView({ user, league, sport, members, names, inviteUrl, now, feeRows, owed, paidOut, slate = null, clock = Date.now(), hasEntries = false, lastSync = null, survivor = null, checklist = null, demo = false }) {
   const survivorReady = 'survivor' in league; // the column exists once the survivor SQL has run
   const modesReady = 'lock_of_week' in league; // and these once the room SQL has
   const inSlate = new Set((slate?.games ?? []).map((g) => g.id));
@@ -41,6 +42,25 @@ export default function AdminView({ user, league, sport, members, names, inviteU
       </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
+        {checklist && (
+          <section className="card border-accent/40 lg:col-span-2" data-checklist>
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <h2 className="h2">Setting up {league.name}</h2>
+              <span className="pill pill-muted">{checklist.filter((i) => i.done).length} of {checklist.length}</span>
+              <form action={demo ? undefined : markTour.bind(null, 'commish', false)} className="ml-auto"><button className="btn btn-ghost btn-sm">Hide this</button></form>
+            </div>
+            <p className="mb-2 text-xs text-muted">You are the commissioner. Everything on this page is yours alone; players never see it. This list ticks itself off.</p>
+            <ol className="grid gap-1 sm:grid-cols-2">
+              {checklist.map((i) => (
+                <li key={i.key} className="flex gap-2 border-t border-line py-2 text-sm">
+                  <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold ${i.done ? 'bg-goodsoft text-good' : 'border border-line text-muted'}`} aria-label={i.done ? 'done' : 'to do'}>{i.done ? '✓' : ''}</span>
+                  <span className="min-w-0"><span className={`font-semibold ${i.done ? 'text-muted line-through' : ''}`}>{i.title}</span><span className="block text-xs text-muted">{i.body}</span></span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+
         <section className="card lg:col-span-2">
           <h2 className="h2 mb-2">Invite link</h2>
           <div className="flex flex-wrap items-center gap-2">

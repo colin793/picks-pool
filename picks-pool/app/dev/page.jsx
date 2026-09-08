@@ -8,6 +8,8 @@ import DevBump from '../components/DevBump';
 import PushToggle from '../components/PushToggle';
 import ChatView from '../components/ChatView';
 import SurvivorView from '../components/SurvivorView';
+import Tour from '../components/Tour';
+import { playerSteps, commishChecklist } from '../../lib/tour';
 import { sport as sportOf } from '../../lib/scores/sports';
 import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, visiblePicks, EPL_GAMES, EPL_PICKS, EPL_NOW, CFB_BOARD, CFB_NOW, SURVIVOR_PREV, SURVIVOR_ENTRIES, visibleSurvivorPicks } from '../../lib/fixtures';
 import { featuredGames } from '../../lib/featured';
@@ -62,9 +64,18 @@ export default function Preview({ searchParams }) {
         <Link href="/dev?view=moments" className="underline">moments</Link>
         <Link href="/dev?view=moments&won=1" className="underline">won</Link>
         <Link href="/dev?view=modes" className="underline">modes</Link>
+        <Link href="/dev?view=tour" className="underline">tour</Link>
         {['picks', 'board'].includes(view) && <DevBump />}
       </div>
-      {view === 'modes' ? (
+      {view === 'tour' ? (
+        // The first-time walkthrough over the picks page, and the commissioner's checklist.
+        <>
+          <AdminView user={{ id: me }} league={{ ...LEAGUE, survivor: false, lock_of_week: false, duels: false, duty: '', calls: true, venmo_handle: '' }} sport={sport} names={NAMES}
+            inviteUrl="https://picks.example.com/join/a1b2c3d4" members={[{ user_id: me, profiles: PLAYERS[0] }]} now={slate} feeRows={[]} owed={[]} paidOut={[]} demo
+            checklist={commishChecklist({ ...LEAGUE, venmo_handle: '' }, { members: 1, pushConfigured: false })} />
+          <Tour demo steps={playerSteps({ ...LEAGUE, survivor: true, lock_of_week: true, duels: true, duty: 'Last place at the end of the month buys the wings' }, sport, { fee: '$5.00' })} />
+        </>
+      ) : view === 'modes' ? (
         // The board with the room modes on: a points column with locks, the duels card, the loser's duty.
         <BoardView league={{ ...LEAGUE, lock_of_week: true, duels: true, duty: 'Last place at the end of the month buys the wings' }} sport={sport} label={slate.label} isCurrent
           slates={[{ key: slate.key, label: 'Demo Week' }, { key: '2026-1-99', label: 'Last week' }]} slateKey={slate.key} games={games}
