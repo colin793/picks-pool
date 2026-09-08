@@ -194,3 +194,46 @@ export const CFB_BOARD = [
   cfbGame('c19', 'UTEP', 'RICE', 'late'), cfbGame('c20', 'UMASS', 'UCONN', 'fri', { hs: 17, as: 14 }),
 ];
 export { CFB_NOW };
+
+// Survivor for the /dev?view=survivor preview: a finished "last week" slate
+// plus the demo week. Kevin and Marco fell last week, Sam falls today, Jess
+// is on Monday night (hidden from everyone else until it kicks off).
+const PREV = '2026-1-99';
+function prevGame(id, away, home, hoursAgo, hs, as) {
+  const a = teams[away], h = teams[home];
+  return {
+    id, sport: 'nfl', season: 2026, season_type: 2, slate_key: PREV, slate_label: 'Last week',
+    kickoff: at(-hoursAgo),
+    home_abbr: h.abbr, home_name: h.name, home_logo: h.logo, home_color: h.color,
+    away_abbr: a.abbr, away_name: a.name, away_logo: a.logo, away_color: a.color,
+    home_score: hs, away_score: as, state: 'post', status_detail: 'Final',
+    winner: hs > as ? 'HOME' : as > hs ? 'AWAY' : 'TIE',
+    possession: '', down_distance: '', red_zone: false, last_play: '', home_spread: null, over_under: null, weather: '', temperature: null,
+  };
+}
+export const SURVIVOR_PREV = [
+  prevGame('w1', 'LV', 'KC', 168, 27, 13),
+  prevGame('w2', 'PHI', 'DAL', 168, 17, 24),
+  prevGame('w3', 'NYJ', 'BUF', 164, 30, 10),
+  prevGame('w4', 'ARI', 'SEA', 160, 20, 17),
+];
+const SP = {
+  'u-colin': [[PREV, 'w1', 'HOME', 'KC'], ['2026-2-00', 'l1', 'AWAY', 'GB']],
+  'u-kevin': [[PREV, 'w2', 'HOME', 'DAL']],
+  'u-brian': [[PREV, 'w2', 'AWAY', 'PHI'], ['2026-2-00', 'f5', 'HOME', 'DET']],
+  'u-sam':   [[PREV, 'w3', 'HOME', 'BUF'], ['2026-2-00', 'f2', 'HOME', 'PHI']],
+  'u-jess':  [[PREV, 'w4', 'HOME', 'SEA'], ['2026-2-00', 'o3', 'HOME', 'MIA']],
+  'u-marco': [[PREV, 'w1', 'AWAY', 'LV']],
+};
+export const SURVIVOR_ENTRIES = PLAYERS.map((p) => ({ league_id: LEAGUE.id, user_id: p.id, season: 2026, paid: PAID.has(p.id), created_at: at(-170) }));
+export function visibleSurvivorPicks(me = 'u-colin', now = NOW) {
+  const all = [...SURVIVOR_PREV, ...GAMES];
+  const out = [];
+  for (const [uid, list] of Object.entries(SP)) {
+    for (const [slate_key, game_id, picked, team] of list) {
+      const g = all.find((x) => x.id === game_id);
+      if (uid === me || new Date(g.kickoff).getTime() <= now) out.push({ league_id: LEAGUE.id, user_id: uid, season: 2026, slate_key, game_id, picked, team });
+    }
+  }
+  return out;
+}

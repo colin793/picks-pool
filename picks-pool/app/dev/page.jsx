@@ -7,9 +7,11 @@ import AdminView from '../components/AdminView';
 import DevBump from '../components/DevBump';
 import PushToggle from '../components/PushToggle';
 import ChatView from '../components/ChatView';
+import SurvivorView from '../components/SurvivorView';
 import { sport as sportOf } from '../../lib/scores/sports';
-import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, visiblePicks, EPL_GAMES, EPL_PICKS, EPL_NOW, CFB_BOARD, CFB_NOW } from '../../lib/fixtures';
+import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, visiblePicks, EPL_GAMES, EPL_PICKS, EPL_NOW, CFB_BOARD, CFB_NOW, SURVIVOR_PREV, SURVIVOR_ENTRIES, visibleSurvivorPicks } from '../../lib/fixtures';
 import { featuredGames } from '../../lib/featured';
+import { survivorStandings } from '../../lib/survivor';
 import { SPORTS } from '../../lib/scores/sports';
 
 export const dynamic = 'force-dynamic';
@@ -43,7 +45,7 @@ export default function Preview({ searchParams }) {
   async function noop() { 'use server'; }
 
   return (
-    <LeagueShell league={LEAGUE} sport={sport} slate={slate} profile={NAMES.get(me)} isCommish base="/dev" signOutAction={noop} demo>
+    <LeagueShell league={{ ...LEAGUE, survivor: true, survivor_fee_cents: 2000 }} sport={sport} slate={slate} profile={NAMES.get(me)} isCommish base="/dev" signOutAction={noop} demo>
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
         <span className="pill pill-warn">Preview · fixture data · clock frozen at Sun 4:40 PM ET</span>
         <Link href="/dev" className="underline">picks</Link>
@@ -55,9 +57,14 @@ export default function Preview({ searchParams }) {
         <Link href="/dev?view=notify" className="underline">notifications</Link>
         <Link href="/dev?view=spread" className="underline">spread</Link>
         <Link href="/dev?view=chat" className="underline">chat</Link>
+        <Link href="/dev?view=survivor" className="underline">survivor</Link>
         {['picks', 'board'].includes(view) && <DevBump />}
       </div>
-      {view === 'chat' ? (
+      {view === 'survivor' ? (
+        // ?as=u-jess views the pool as another player (her pick is Monday night, still open).
+        <SurvivorView league={{ ...LEAGUE, survivor: true, survivor_fee_cents: 2000 }} sport={sport} slate={slate} me={NAMES.has(searchParams?.as) ? searchParams.as : me} now={NOW} fixedNow={NOW} demo base="/dev"
+          games={[...SURVIVOR_PREV, ...games]} entries={SURVIVOR_ENTRIES} picks={visibleSurvivorPicks(NAMES.has(searchParams?.as) ? searchParams.as : me, NOW)} names={NAMES} />
+      ) : view === 'chat' ? (
         <ChatView leagueId={LEAGUE.id} me={me} isCommish names={NAMES} demo messages={[
           { id: 'm1', user_id: 'u-kevin', body: 'who took the Jets lol', created_at: new Date(NOW - 3600_000).toISOString() },
           { id: 'm2', user_id: 'u-colin', body: 'me. and I would do it again', created_at: new Date(NOW - 3500_000).toISOString() },
@@ -110,11 +117,13 @@ export default function Preview({ searchParams }) {
         </>
       ) : view === 'admin' ? (
         <AdminView
-          user={{ id: me }} league={LEAGUE} sport={sport} names={NAMES} inviteUrl="https://picks.example.com/join/a1b2c3d4"
+          user={{ id: me }} league={{ ...LEAGUE, survivor: true, survivor_fee_cents: 2000 }} sport={sport} names={NAMES} inviteUrl="https://picks.example.com/join/a1b2c3d4"
           members={PLAYERS.map((p) => ({ user_id: p.id, profiles: p }))}
           now={slate} feeRows={ENTRIES}
           owed={[{ key: '2026-2-00', label: 'Preseason 4', pot: 2500, share: 1250, winners: [{ user_id: 'u-sam', name: 'Sam', venmo: '@sam-p' }, { user_id: 'u-brian', name: 'Brian', venmo: '' }] }]}
           paidOut={[{ id: 'p1', user_id: 'u-kevin', amount_cents: 2000, slate_key: '2026-2-00' }]}
+          survivor={{ season: 2026, pot: 12000, share: 12000, complete: false, paid: false, winners: [],
+            rows: survivorStandings([...SURVIVOR_PREV, ...games], SURVIVOR_ENTRIES, visibleSurvivorPicks(me, NOW), { now: NOW }).rows }}
         />
       ) : view === 'board' ? (
         <BoardView

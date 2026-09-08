@@ -5,10 +5,11 @@ import { usePathname } from 'next/navigation';
 import { Icon } from './icons';
 
 // One nav definition, two renderings: sidebar on desktop, tab bar on phones.
-export function navItems(base, isCommish) {
+export function navItems(base, isCommish, survivor = false) {
   const items = [
     { href: base, label: 'Picks', icon: 'picks', exact: true },
     { href: `${base}/board`, label: 'This week', icon: 'board' },
+    ...(survivor ? [{ href: `${base}/survivor`, label: 'Survivor', icon: 'survivor' }] : []),
     { href: `${base}/season`, label: 'Season', icon: 'season' },
     { href: `${base}/chat`, label: 'Chat', icon: 'chat' },
   ];
@@ -20,11 +21,11 @@ function isOn(pathname, item) {
   return item.exact ? pathname === item.href : pathname.startsWith(item.href);
 }
 
-export function SidebarNav({ base, isCommish, slateLabel }) {
+export function SidebarNav({ base, isCommish, slateLabel, survivor = false }) {
   const pathname = usePathname();
   return (
     <nav className="flex flex-col gap-1">
-      {navItems(base, isCommish).map((it) => {
+      {navItems(base, isCommish, survivor).map((it) => {
         const I = Icon[it.icon];
         const on = isOn(pathname, it);
         return (
@@ -45,9 +46,9 @@ export function SidebarNav({ base, isCommish, slateLabel }) {
   );
 }
 
-export function TabBar({ base, isCommish }) {
+export function TabBar({ base, isCommish, survivor = false }) {
   const pathname = usePathname();
-  const items = navItems(base, isCommish);
+  const items = navItems(base, isCommish, survivor);
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 backdrop-blur lg:hidden"

@@ -48,6 +48,9 @@ create table public.leagues (
   -- kickoff; a push scores for nobody. Fixed once the league has an entry.
   scoring text not null default 'straight' check (scoring in ('straight', 'spread')),
   venmo_handle text not null default '',
+  -- Survivor pool beside the pick'em: on/off, and its once-a-season buy-in.
+  survivor boolean not null default false,
+  survivor_fee_cents int not null default 1000,
   recap_enabled boolean not null default true,
   reminders_enabled boolean not null default true,
   commissioner uuid not null references public.profiles(id),
@@ -144,6 +147,8 @@ create table public.picks (
   unique (entry_id, game_id)
 );
 
+-- Money the commissioner marked as sent. slate_key is the slate that paid,
+-- or the word 'survivor' for the survivor pool's season prize.
 create table public.payouts (
   id uuid primary key default gen_random_uuid(),
   league_id uuid not null references public.leagues on delete cascade,
@@ -214,6 +219,32 @@ create table public.reactions (
 );
 create index reactions_league_idx on public.reactions (league_id);
 
+-- Survivor pool: one row per person per season (their seat and whether the
+-- buy-in is paid), and one pick per slate. `team` is filled by a trigger from
+-- the game; the unique key on it is the "never the same team twice" rule.
+create table public.survivor_entries (
+  league_id uuid not null references public.leagues on delete cascade,
+  user_id uuid not null references public.profiles on delete cascade,
+  season int not null,
+  paid boolean not null default false,
+  created_at timestamptz not null default now(),
+  primary key (league_id, user_id, season)
+);
+create table public.survivor_picks (
+  league_id uuid not null,
+  user_id uuid not null,
+  season int not null,
+  slate_key text not null,
+  game_id text not null references public.games,
+  picked text not null check (picked in ('HOME', 'AWAY')),
+  team text not null default '',
+  created_at timestamptz not null default now(),
+  primary key (league_id, user_id, season, slate_key),
+  unique (league_id, user_id, season, team),
+  foreign key (league_id, user_id, season) references public.survivor_entries on delete cascade
+);
+create index survivor_picks_league_idx on public.survivor_picks (league_id, season);
+
 -- ---------- helper functions ----------
 -- security definer so policies can consult tables the caller may not read.
 
@@ -278,6 +309,54 @@ language sql security definer set search_path = public stable as $$
       and (side <> 'TIE' or sp.draws)
   );
 $$;
+
+-- Survivor: may someone still enter? Until the pool's first slate (the slate
+-- of the earliest pick anyone made) has its last kickoff. No picks yet: open.
+create function public.survivor_open(l uuid, s int) returns boolean
+language sql security definer set search_path = public stable as $$
+  select coalesce(
+    (select now() < slate_lock_at(l, s, min(slate_key)) from survivor_picks where league_id = l and season = s),
+    true);
+$$;
+
+-- Survivor: may the caller make this pick? Pool on, member, game not started,
+-- right sport/season/slate, in the league's curated slate, a side (no draws).
+create function public.survivor_pick_open(l uuid, s int, k text, g text, side text) returns boolean
+language sql security definer set search_path = public stable as $$
+  select exists (
+    select 1 from leagues lg join games gm on gm.id = g
+    where lg.id = l and lg.survivor and is_member(l)
+      and gm.kickoff > now()
+      and gm.sport = lg.sport and gm.season = s and gm.slate_key = k
+      and in_slate(l, s, k, g)
+      and side in ('HOME', 'AWAY')
+  );
+$$;
+
+-- Survivor: the team is the game's side, whatever the client sent.
+create function public.survivor_picks_fill() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  select case when new.picked = 'HOME' then home_abbr else away_abbr end into new.team from games where id = new.game_id;
+  if new.team is null then raise exception 'Unknown game'; end if;
+  return new;
+end;
+$$;
+create trigger survivor_picks_fill before insert or update on public.survivor_picks
+  for each row execute function public.survivor_picks_fill();
+
+-- Survivor: an entry stays where it is. The commissioner flips paid, nothing else moves.
+create function public.survivor_entries_guard() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.league_id <> old.league_id or new.user_id <> old.user_id or new.season <> old.season then
+    raise exception 'Survivor entries cannot be moved';
+  end if;
+  return new;
+end;
+$$;
+create trigger survivor_entries_guard before update on public.survivor_entries
+  for each row execute function public.survivor_entries_guard();
 
 -- Copy new signups into profiles (email included, so emails need no admin lookups).
 create function public.handle_new_user() returns trigger
@@ -350,6 +429,8 @@ alter table public.push_subscriptions enable row level security;
 alter table public.push_sent enable row level security;
 alter table public.messages enable row level security;
 alter table public.reactions enable row level security;
+alter table public.survivor_entries enable row level security;
+alter table public.survivor_picks enable row level security;
 
 -- reference data: read-only for anyone signed in.
 create policy sports_read on public.sports for select to authenticated using (true);
@@ -454,6 +535,32 @@ create policy reactions_update on public.reactions for update to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy reactions_delete on public.reactions for delete to authenticated
   using (user_id = auth.uid());
+
+-- survivor entries: members see the pool. Enter as yourself while entries are
+-- open; leave while they are open; the commissioner marks paid, removes anyone.
+create policy survivor_entries_read on public.survivor_entries for select to authenticated
+  using (is_member(league_id));
+create policy survivor_entries_insert on public.survivor_entries for insert to authenticated
+  with check (user_id = auth.uid() and is_member(league_id)
+    and exists (select 1 from leagues where id = league_id and survivor)
+    and survivor_open(league_id, season));
+create policy survivor_entries_update on public.survivor_entries for update to authenticated
+  using (is_commissioner(league_id)) with check (is_commissioner(league_id));
+create policy survivor_entries_delete on public.survivor_entries for delete to authenticated
+  using ((user_id = auth.uid() and survivor_open(league_id, season)) or is_commissioner(league_id));
+-- survivor picks: yours always; everyone else's once that game kicks off.
+-- Writes go through survivor_pick_open(); a pick on a started game cannot be touched.
+create policy survivor_picks_read on public.survivor_picks for select to authenticated using (
+  user_id = auth.uid()
+  or (is_member(league_id) and exists (select 1 from games g where g.id = game_id and g.kickoff <= now()))
+);
+create policy survivor_picks_insert on public.survivor_picks for insert to authenticated
+  with check (user_id = auth.uid() and survivor_pick_open(league_id, season, slate_key, game_id, picked));
+create policy survivor_picks_update on public.survivor_picks for update to authenticated
+  using (user_id = auth.uid() and exists (select 1 from games g where g.id = game_id and g.kickoff > now()))
+  with check (user_id = auth.uid() and survivor_pick_open(league_id, season, slate_key, game_id, picked));
+create policy survivor_picks_delete on public.survivor_picks for delete to authenticated
+  using (user_id = auth.uid() and exists (select 1 from games g where g.id = game_id and g.kickoff > now()));
 
 -- push subscriptions: your own devices, nothing else.
 create policy push_subscriptions_read on public.push_subscriptions for select to authenticated
