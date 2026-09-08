@@ -46,8 +46,10 @@ export function roomTake(games, entries, picks, me) {
 }
 
 // One or two short lines for the fold. names: user_id -> profile.
+// Quiet until the room has picked at least three of the team's games:
+// "takes NE 0% of the time" after one game is noise, not a take.
 export function takeText(abbr, take, { me = null, names = new Map() } = {}) {
-  if (!take || !take.games) return [];
+  if (!take || take.games < 3) return [];
   const lines = [];
   const pct = Math.round(take.share * 100);
   lines.push(`The room takes ${abbr} ${pct}% of the time${take.room.won + take.room.lost ? `, and is ${take.room.won}-${take.room.lost} when it does` : ''}.`);

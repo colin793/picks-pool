@@ -37,6 +37,7 @@ assert.deepEqual(takeText('KC', kc, { me: 'colin', names }), [
 ]);
 assert.deepEqual(takeText('KC', kc, { me: 'kevin', names }).length, 2); // the rider is not told about himself
 assert.deepEqual(takeText('ZZZ', undefined), []);
-assert.deepEqual(takeText('DAL', t.get('DAL'), { me: 'sam' }), ['The room takes DAL 50% of the time.']);
+assert.deepEqual(takeText('DAL', t.get('DAL'), { me: 'sam' }), []);            // two picks on one game: too little to say
+assert.deepEqual(takeText('LV', t.get('LV'), { me: 'sam' }), ['The room takes LV 33% of the time, and is 0-1 when it does.', 'You are 1-0 against them.']);
 
 console.log('room self-check: all good');
