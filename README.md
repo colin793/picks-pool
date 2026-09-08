@@ -116,6 +116,22 @@ Before kickoff: the line as ESPN carries it ("KC -3.5 · O/U 47.5") and the weat
 ### Chat
 
 A members-only room per league, on its own tab. It refreshes itself every fifteen seconds, you can delete your own messages, and the commissioner can delete anyone's. No notifications for chat, on purpose: the two push alerts stay rare.
+### Where to watch, and About this matchup
+
+Each card shows the network under the kickoff and both records coming in, straight from the scoreboard feed. "About this matchup" folds open under the card: the room's take first (how often the room takes this team and its record doing so, your record backing and fading them, who rides them), then what ESPN's per-game summary says: last five, leaders, injuries, ESPN's projection, fetched the first time anyone opens it and cached in `game_notes` for a day, or for good once final. The room's take comes from picks you can already see, so nothing leaks. `lib/room.js` and `lib/scores/matchup.js`, both with self-checks.
+
+### Room modes
+
+Three switches in Admin, all off until the commissioner flips them. **Lock of the week**: tap Lock on one of your picked games and a right pick there counts double; the entries trigger allows it only while the league plays the mode and only on one of your open games in the slate, and other players' locks stay hidden until the game kicks off. Points rank the slate and equal right picks whenever the mode is off. **Duels**: a deterministic round-robin pairs everyone who entered before the first kickoff, the board shows the head-to-heads and the Season tab keeps the records. **Loser's duty**: the commissioner's sentence, shown with the standings and pinned to whoever sits last on the Season tab. `lib/duels.js` has the pairings with a self-check.
+
+### Call it
+
+"KC by 10." In Chat, pick a game, a side and a margin if you dare, and it goes on the record for the room to see; graded when the game goes final (a margin call needs the full number, a tie misses). Take your own back until kickoff; the commissioner can remove any. The Tuesday recap quotes the receipts and the Season tab keeps each person's hit rate. On by default because it changes no scores; the commissioner can switch it off. `lib/calls.js` with a self-check.
+
+### First-time tours
+
+A new member gets a walkthrough at the bottom of the league, one step at a time, written from that league's settings; finishing or skipping is remembered on the profile. The commissioner's first Admin visit opens a setup checklist that ticks itself off. How to play (sidebar, or the ? in the phone header) is the same script as a page, with a button to run the tour again. `lib/tour.js` with a self-check.
+
 ### The little pops
 
 Small moments, all front end: a countdown to the next lock on the submit bar (amber inside an hour, red inside ten minutes); a check-mark and "You're in, 13 to go" on your first pick of the week; a grid cell that turns over on the first refresh after its game kicks off; an "Upset" chip when the dog by a real line wins outright, with the grid marking everyone who called it; a rivalry line on the standings ("1 behind Kevin"); "Comes down to the finale" when the top is tied with one game left, tracking the running total; a sweat strip on the Survivor tab while your team plays; one burst of confetti the first time you open a board you won; and a dismissible "Week 2 is in the books" line on the Picks tab until the next kickoff. The words come from `lib/moments.js` with their own self-check; `/dev?view=moments` and `/dev?view=moments&won=1` show them on fixture data.
@@ -187,6 +203,10 @@ v2 changes the schema (weeks became slates, games gained a sport and logos). The
 ## Upgrading from v2.4 to v2.5 (chat)
 
 Paste `picks-pool/supabase/migrations/2026-09-06-chat.sql` into the Supabase SQL Editor and Run.
+## Upgrading from v2.7 to v2.8 (the room: matchup fold, room modes, Call it, tours)
+
+Paste `picks-pool/supabase/migrations/2026-09-09-room.sql` into the Supabase SQL Editor and Run. Nothing changes for players until the commissioner switches a mode on in Admin; Call it and the matchup fold appear at once, and the tour greets each person on their next visit.
+
 ## Upgrading from v2.6 to v2.7 (survivor)
 
 Paste `picks-pool/supabase/migrations/2026-09-08-survivor.sql` into the Supabase SQL Editor and Run, then switch the pool on in the league's Admin tab. Until the SQL has run, the Admin form says so and nothing else changes.
