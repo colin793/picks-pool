@@ -67,47 +67,70 @@ export default function MatchupFold({ game: g, take = { home: [], away: [] }, ho
             </section>
           )}
 
-          {(has('lastFive') || has('leaders') || has('injuries')) && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {sides.map((s) => (
-                <section key={s} className="min-w-0 space-y-3">
-                  <h4 className="font-display text-base font-bold tracking-wide">{abbr(s)}</h4>
-                  {notes.lastFive[s]?.length > 0 && (
-                    <div>
-                      <div className="eyebrow mb-1 !text-[10px]">Last {notes.lastFive[s].length}</div>
-                      <ul className="flex flex-wrap gap-1">
-                        {notes.lastFive[s].map((e, i) => (
-                          <li key={i} className={`rounded px-1.5 py-0.5 text-[12px] ${e.result === 'W' ? 'bg-goodsoft text-good' : e.result === 'L' ? 'bg-badsoft text-bad' : 'bg-surface2 text-muted'}`}>
-                            <span className="font-bold">{e.result}</span> {e.score} <span className="opacity-80">{e.opp}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {notes.leaders[s]?.length > 0 && (
-                    <div>
-                      <div className="eyebrow mb-1 !text-[10px]">Leaders</div>
-                      <ul className="space-y-0.5">
-                        {notes.leaders[s].map((l, i) => (
-                          <li key={i} className="flex gap-2"><span className="w-12 shrink-0 pt-0.5 text-[11px] uppercase tracking-wide text-muted">{l.stat}</span><span className="min-w-0 flex-1 break-words"><span className="font-semibold">{l.name}</span> <span className="text-ink2">{l.value}</span></span></li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {notes.injuries[s]?.length > 0 && (
-                    <div>
-                      <div className="eyebrow mb-1 !text-[10px]">Injuries</div>
-                      <ul className="space-y-0.5">
-                        {notes.injuries[s].slice(0, 4).map((i, k) => (
-                          <li key={k} className="flex items-center gap-2"><span className="min-w-0 flex-1 truncate">{i.name}{i.pos ? <span className="text-muted"> {i.pos}</span> : ''}</span><span className={`pill ${/out|reserve/i.test(i.status) ? 'pill-bad' : /doubt/i.test(i.status) ? 'pill-warn' : 'pill-muted'}`}>{i.status.replace('Injured Reserve', 'IR')}</span></li>
-                        ))}
-                        {notes.injuries[s].length > 4 && <li className="text-muted">and {notes.injuries[s].length - 4} more</li>}
-                      </ul>
-                    </div>
-                  )}
-                </section>
-              ))}
-            </div>
+          {has('lastFive') && (
+            <section>
+              <h4 className="eyebrow mb-1">Last five</h4>
+              {sides.map((s) => (notes.lastFive[s]?.length ? (
+                <div key={s} className="mb-1.5 flex items-start gap-2">
+                  <span className="w-10 shrink-0 pt-0.5 font-display text-sm font-bold tracking-wide">{abbr(s)}</span>
+                  <ul className="flex min-w-0 flex-wrap gap-1">
+                    {notes.lastFive[s].map((e, i) => (
+                      <li key={i} className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] ${e.result === 'W' ? 'bg-goodsoft text-good' : e.result === 'L' ? 'bg-badsoft text-bad' : 'bg-surface2 text-muted'}`}>
+                        <span className="font-bold">{e.result}</span> {e.score} <span className="opacity-80">{e.opp}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null))}
+            </section>
+          )}
+
+          {has('leaders') && (
+            <section>
+              <h4 className="eyebrow mb-1">Leaders</h4>
+              <table className="w-full text-[12px]">
+                <thead>
+                  <tr>
+                    <th className="w-10 text-left text-[10px] uppercase tracking-wide text-muted" aria-label="Stat" />
+                    {sides.map((s) => <th key={s} className="text-left font-display text-sm font-bold tracking-wide">{abbr(s)}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...new Set(sides.flatMap((s) => (notes.leaders[s] ?? []).map((l) => l.stat)))].map((stat) => (
+                    <tr key={stat} className="align-top">
+                      <td className="py-0.5 pr-2 text-[10px] uppercase tracking-wide text-muted">{stat}</td>
+                      {sides.map((s) => {
+                        const l = (notes.leaders[s] ?? []).find((x) => x.stat === stat);
+                        return <td key={s} className="py-0.5 pr-2">{l ? <><span className="font-semibold">{l.name}</span> <span className="text-ink2">{l.value}</span></> : <span className="text-muted">–</span>}</td>;
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )}
+
+          {has('injuries') && (
+            <section>
+              <h4 className="eyebrow mb-1">Injuries</h4>
+              {sides.map((s) => (notes.injuries[s]?.length ? (
+                <div key={s} className="mb-1.5 flex items-start gap-2">
+                  <span className="w-10 shrink-0 pt-0.5 font-display text-sm font-bold tracking-wide">{abbr(s)}</span>
+                  <ul className="flex min-w-0 flex-wrap gap-1">
+                    {notes.injuries[s].map((i, k) => {
+                      const st = /reserve|^ir$/i.test(i.status) ? 'IR' : /out/i.test(i.status) ? 'Out' : /doubt/i.test(i.status) ? 'D' : /question/i.test(i.status) ? 'Q' : /prob/i.test(i.status) ? 'P' : i.status.slice(0, 3);
+                      const tone = st === 'IR' || st === 'Out' ? 'bg-badsoft text-bad' : st === 'D' ? 'bg-warnsoft text-warn' : 'bg-surface2 text-ink2';
+                      return (
+                        <li key={k} className={`whitespace-nowrap rounded px-1.5 py-0.5 text-[12px] ${tone}`} title={`${i.name}${i.pos ? ` (${i.pos})` : ''}: ${i.status}`}>
+                          {i.name}{i.pos ? <span className="opacity-70"> {i.pos}</span> : ''} <span className="font-bold">· {st}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : null))}
+              <p className="text-[11px] text-muted">Q questionable · D doubtful · IR injured reserve</p>
+            </section>
           )}
 
           {notes === null && !pending && <p className="text-muted">Nothing more from ESPN on this one.</p>}
