@@ -13,12 +13,24 @@ export function lockWindow(games, now = Date.now(), windowMs = 60 * 60_000) {
   return { minutes: Math.max(1, Math.round(until / 60_000)), first, open: upcoming.length };
 }
 
-export function lockMessage(league, slateLabel, { minutes, first, open }, leagueUrl) {
+// `survivor: true` when the same person also has no survivor team yet, so
+// one alert covers both instead of two landing in the same minute.
+export function lockMessage(league, slateLabel, { minutes, first, open }, leagueUrl, { survivor = false } = {}) {
   return {
     title: `${league.name}: picks lock in ${minutes} min`,
-    body: `${first.away_abbr} @ ${first.home_abbr} kicks off first. You haven't entered ${slateLabel} yet; ${open} game${open === 1 ? '' : 's'} still open.`,
+    body: `${first.away_abbr} @ ${first.home_abbr} kicks off first. You haven't entered ${slateLabel} yet; ${open} game${open === 1 ? '' : 's'} still open.${survivor ? ' Your survivor team is missing too.' : ''}`,
     url: leagueUrl,
     tag: `lock-${league.id}-${slateLabel}`,
+  };
+}
+
+// The survivor-only version: entered the pick'em, forgot the team that keeps you alive.
+export function survivorLockMessage(league, slateLabel, { minutes, first }, leagueUrl) {
+  return {
+    title: `${league.name}: survivor locks in ${minutes} min`,
+    body: `You're alive with no team for ${slateLabel}. ${first.away_abbr} @ ${first.home_abbr} kicks off first; miss the week and you're out.`,
+    url: `${leagueUrl}/survivor`,
+    tag: `slock-${league.id}-${slateLabel}`,
   };
 }
 

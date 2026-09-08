@@ -4,7 +4,8 @@ import { easternDate } from './scores/espn';
 import { fmtET } from './time';
 import { sendEmail } from './email/send';
 import { applyFeatured } from './featured';
-import { featuredRows } from './league';
+import { featuredRows, loadSurvivor } from './league';
+import { survivorNeeds } from './survivor';
 
 // Morning-of reminder to anyone in a week-mode league who has no entry on the
 // current slate, when that slate has games kicking off today (ET) and at
@@ -36,15 +37,30 @@ export async function sendReminders() {
         db.from('entries').select('user_id').eq('league_id', league.id).eq('season', state.season).eq('slate_key', state.slate_key),
       ]);
       const entered = new Set((entries ?? []).map((e) => e.user_id));
+      // Survivor: alive with no team is the same kind of forgetting, and costlier.
+      let needsTeam = new Set();
+      if (league.survivor) {
+        const sv = await loadSurvivor(db, league, state.season);
+        if (!sv.missing) needsTeam = new Set(survivorNeeds(sv.games, sv.entries, sv.picks, state.slate_key));
+      }
       const first = upcoming[0];
       const text =
         `${state.slate_label} picks for ${league.name} lock game by game, starting with ` +
         `${first.away_abbr} @ ${first.home_abbr} at ${fmtET(first.kickoff)}.\n\n` +
         `You haven't entered yet. ${upcoming.length} games are still open:\n${base}/l/${league.id}\n\n` +
         `Turn these reminders off in the league's Admin tab (commissioner) if they get old.`;
+      const survivorText =
+        `You're still alive in the ${league.name} survivor pool and have no team for ${state.slate_label}. ` +
+        `The first game, ${first.away_abbr} @ ${first.home_abbr}, kicks off at ${fmtET(first.kickoff)}; miss the week and you're out:\n${base}/l/${league.id}/survivor`;
       for (const m of members ?? []) {
-        if (entered.has(m.user_id) || !m.profiles?.email) continue;
-        if (await sendEmail(m.profiles.email, `${league.name}: ${state.slate_label} picks lock today`, text)) sent += 1;
+        if (!m.profiles?.email) continue;
+        const needs = needsTeam.has(m.user_id);
+        if (!entered.has(m.user_id)) {
+          const body = needs ? `${text}\n\nAnd your survivor team is missing too: ${base}/l/${league.id}/survivor` : text;
+          if (await sendEmail(m.profiles.email, `${league.name}: ${state.slate_label} picks lock today`, body)) sent += 1;
+        } else if (needs) {
+          if (await sendEmail(m.profiles.email, `${league.name}: survivor team needed today`, survivorText)) sent += 1;
+        }
       }
       done.push(league.name);
     } catch (e) {

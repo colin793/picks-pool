@@ -21,6 +21,13 @@ assert.equal(m.title, 'Draft With Purpose: picks lock in 50 min');
 assert.match(m.body, /NE @ SEA kicks off first/);
 assert.match(m.body, /2 games still open/);
 assert.equal(m.url, 'https://x/l/L1');
+assert.doesNotMatch(m.body, /survivor/);
+assert.match(lockMessage(league, 'Week 1', w, 'https://x/l/L1', { survivor: true }).body, /survivor team is missing too/);
+import { survivorLockMessage } from './rules.js';
+const sm = survivorLockMessage(league, 'Week 1', w, 'https://x/l/L1');
+assert.equal(sm.title, 'Draft With Purpose: survivor locks in 50 min');
+assert.match(sm.body, /no team for Week 1/);
+assert.equal(sm.url, 'https://x/l/L1/survivor');
 
 // ---- leaders: by correct picks, ties included, only once something is final ----
 const games = [g('a', '2026-09-11T00:20:00Z', 'post', 'HOME'), g('b', '2026-09-13T17:00:00Z', 'post', 'AWAY'), g('c', '2026-09-13T20:25:00Z', 'in')];
