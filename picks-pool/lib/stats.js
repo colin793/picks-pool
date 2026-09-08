@@ -19,8 +19,11 @@ export function ahead(g, scoring = 'straight') {
 }
 
 // games: one slate's games. entries: that slate's entries (any shape with id,
-// user_id, tiebreaker). picks: rows for those entries. scoring: see outcome().
-export function slateResults(games, entries, picks, { scoring = 'straight' } = {}) {
+// user_id, tiebreaker, and lock_game_id when the league plays a lock of the
+// week). picks: rows for those entries. scoring: see outcome(). lock: true
+// when a correct pick on the entry's lock game counts double; `points` is
+// what ranks the slate, and equals `correct` whenever the lock is off.
+export function slateResults(games, entries, picks, { scoring = 'straight', lock = false } = {}) {
   const finals = games.filter((g) => g.state === 'post');
   const live = games.filter((g) => g.state === 'in');
   const complete = games.length > 0 && finals.length === games.length;
@@ -34,8 +37,12 @@ export function slateResults(games, entries, picks, { scoring = 'straight' } = {
   const rows = entries.map((e) => {
     const mine = byEntry.get(e.id) ?? new Map();
     let correct = 0;
+    let lockHit = false;
     for (const g of finals) {
-      if (mine.get(g.id) === outcome(g, scoring)) correct += 1; // ties, pushes and missing picks score for nobody
+      if (mine.get(g.id) === outcome(g, scoring)) {
+        correct += 1; // ties, pushes and missing picks score for nobody
+        if (lock && e.lock_game_id === g.id) lockHit = true;
+      }
     }
     // Games in progress where the picked side currently leads. Display only.
     let leading = 0;
@@ -51,14 +58,16 @@ export function slateResults(games, entries, picks, { scoring = 'straight' } = {
       decided: finals.length,
       leading,
       picked: mine.size,
+      lockHit,
+      points: correct + (lockHit ? 1 : 0),
     };
   });
 
-  rows.sort((a, b) => b.correct - a.correct || b.leading - a.leading);
-  // Competition ranking on correct picks only: ties share the better rank,
-  // the next rank is skipped. "leading" only orders the display.
+  rows.sort((a, b) => b.points - a.points || b.leading - a.leading);
+  // Competition ranking on points only: ties share the better rank, the next
+  // rank is skipped. "leading" only orders the display.
   rows.forEach((r, i) => {
-    r.rank = i > 0 && r.correct === rows[i - 1].correct ? rows[i - 1].rank : i + 1;
+    r.rank = i > 0 && r.points === rows[i - 1].points ? rows[i - 1].rank : i + 1;
   });
 
   let winners = [];
@@ -80,7 +89,7 @@ export function slateResults(games, entries, picks, { scoring = 'straight' } = {
 
 // Season aggregates per user across every slate with entries.
 // payouts: recorded payout rows (money actually sent).
-export function seasonStats(allGames, allEntries, allPicks, payouts, { scoring = 'straight' } = {}) {
+export function seasonStats(allGames, allEntries, allPicks, payouts, { scoring = 'straight', lock = false } = {}) {
   const slates = [...new Set(allEntries.map((e) => e.slate_key))].sort();
   const users = new Map(); // user_id -> aggregate
 
@@ -89,7 +98,7 @@ export function seasonStats(allGames, allEntries, allPicks, payouts, { scoring =
     const entries = allEntries.filter((e) => e.slate_key === key);
     const entryIds = new Set(entries.map((e) => e.id));
     const picks = allPicks.filter((p) => entryIds.has(p.entry_id));
-    const { rows, complete, winners } = slateResults(games, entries, picks, { scoring });
+    const { rows, complete, winners } = slateResults(games, entries, picks, { scoring, lock });
     const winnerIds = new Set(winners.map((w) => w.user_id));
 
     for (const r of rows) {
@@ -99,6 +108,8 @@ export function seasonStats(allGames, allEntries, allPicks, payouts, { scoring =
         wins: 0,
         correct: 0,
         incorrect: 0,
+        points: 0,
+        locks: 0,
         rankSum: 0,
         rankedSlates: 0,
         money: 0,
@@ -106,6 +117,8 @@ export function seasonStats(allGames, allEntries, allPicks, payouts, { scoring =
       u.slates += 1;
       u.correct += r.correct;
       u.incorrect += r.incorrect;
+      u.points += r.points;
+      if (r.lockHit) u.locks += 1;
       if (complete) {
         u.rankSum += r.rank; // avg finish counts only completed slates they entered
         u.rankedSlates += 1;

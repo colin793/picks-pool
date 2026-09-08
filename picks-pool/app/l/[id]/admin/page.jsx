@@ -3,6 +3,8 @@ import { leagueContext, currentSlate, loadSeason, loadSlate, loadSurvivor } from
 import { appUrl } from '../../../../lib/supabase';
 import { slateResults, potFor } from '../../../../lib/stats';
 import { survivorStandings, survivorPot } from '../../../../lib/survivor';
+import { commishChecklist } from '../../../../lib/tour';
+import { pushConfigured } from '../../../../lib/push/send';
 import AdminView from '../../../components/AdminView';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +21,10 @@ export default async function Admin({ params }) {
     .eq('league_id', league.id).order('created_at');
   const names = new Map((members ?? []).map((m) => [m.user_id, m.profiles]));
   const inviteUrl = `${appUrl()}/join/${league.invite_code}`;
+  // The first-time checklist, until the commissioner hides it. Read on its
+  // own so a database without the column yet simply shows no checklist.
+  const { data: tourRow, error: tourErr } = await db.from('profiles').select('tours').eq('id', user.id).maybeSingle();
+  const showChecklist = !tourErr && tourRow && !tourRow.tours?.commish;
 
   // The curated slate, for sports that have one.
   let slate = null;
@@ -57,7 +63,7 @@ export default async function Admin({ params }) {
       const games = (allGames ?? []).filter((g) => g.slate_key === key);
       const entries = (allEntries ?? []).filter((e) => e.slate_key === key);
       const ids = new Set(entries.map((e) => e.id));
-      const r = slateResults(games, entries, (allPicks ?? []).filter((p) => ids.has(p.entry_id)), { scoring: league.scoring });
+      const r = slateResults(games, entries, (allPicks ?? []).filter((p) => ids.has(p.entry_id)), { scoring: league.scoring, lock: Boolean(league.lock_of_week) });
       if (r.complete && r.winners.length) {
         const { pot, share } = potFor(entries, league.entry_fee_cents, r.winners);
         owed.push({
@@ -70,6 +76,7 @@ export default async function Admin({ params }) {
 
   return (
     <AdminView user={user} league={league} sport={sport} members={members ?? []} names={names}
-      inviteUrl={inviteUrl} now={now} feeRows={feeRows} owed={owed} paidOut={paidOut} slate={slate} hasEntries={hasEntries} lastSync={state?.last_sync ?? null} survivor={survivor} />
+      inviteUrl={inviteUrl} now={now} feeRows={feeRows} owed={owed} paidOut={paidOut} slate={slate} hasEntries={hasEntries} lastSync={state?.last_sync ?? null} survivor={survivor}
+      checklist={showChecklist ? commishChecklist(league, { members: (members ?? []).length, pushConfigured: pushConfigured(), hasEntries }) : null} />
   );
 }

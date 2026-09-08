@@ -463,6 +463,114 @@ do $$ declare n int; ok boolean; begin
   perform pg_temp.as_admin();
 end $$;
 
+-- Lock of the week: off by default, the commissioner's switch, one of your
+-- own open games, frozen once it kicks off. (The college league; alice's
+-- entry is on Week 2 with c-in-1 open and c-started underway.)
+do $$ declare ok boolean; n int; g text; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  begin
+    update entries set lock_game_id = 'c-in-1' where id = '20000000-0000-0000-0000-000000000007'; ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('no lock while the league does not play the mode', ok);
+  begin
+    update leagues set lock_of_week = true where id = '10000000-0000-0000-0000-000000000007'; ok := false;
+  exception when others then ok := true; end;
+  select lock_of_week into ok from leagues where id = '10000000-0000-0000-0000-000000000007';
+  perform pg_temp.check('a player cannot switch the mode on', ok is not true);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- commissioner
+  update leagues set lock_of_week = true where id = '10000000-0000-0000-0000-000000000007';
+  get diagnostics n = row_count;
+  perform pg_temp.check('the commissioner switches the lock of the week on', n = 1);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  begin
+    update entries set lock_game_id = 'c-in-1' where id = '20000000-0000-0000-0000-000000000007'; ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('a lock on one of your open games is accepted', ok);
+  begin
+    update entries set lock_game_id = 'c-started' where id = '20000000-0000-0000-0000-000000000007'; ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a lock on a started game is refused', ok);
+  begin
+    update entries set lock_game_id = 'c-out' where id = '20000000-0000-0000-0000-000000000007'; ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a lock outside the curated slate is refused', ok);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- the commissioner looks at alice's entry
+  select lock_game_id into g from entries_board where id = '20000000-0000-0000-0000-000000000007';
+  perform pg_temp.check('another player''s lock is hidden until its game kicks off', g is null);
+  perform pg_temp.as_admin();
+  update entries set lock_game_id = 'c-started' where id = '20000000-0000-0000-0000-000000000007'; -- as if it had been set before kickoff
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  begin
+    update entries set lock_game_id = 'c-in-1' where id = '20000000-0000-0000-0000-000000000007'; ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a lock cannot move once its game has kicked off', ok);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001');
+  select lock_game_id into g from entries_board where id = '20000000-0000-0000-0000-000000000007';
+  perform pg_temp.check('...and is visible to the league once it has', g = 'c-started');
+  perform pg_temp.as_admin();
+  update leagues set lock_of_week = false where id = '10000000-0000-0000-0000-000000000007';
+  update entries set lock_game_id = null where id = '20000000-0000-0000-0000-000000000007';
+end $$;
+
+-- Call it: any member on an open game in the slate; your own back before
+-- kickoff, the commissioner's any time. (The college league again.)
+do $$ declare ok boolean; n int; cid uuid; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  begin
+    insert into calls (league_id, user_id, game_id, side, margin, body) values
+      ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 'c-in-1', 'HOME', 10, 'Dawgs roll') returning id into cid; ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('a member can call an open game', ok);
+  begin
+    insert into calls (league_id, user_id, game_id, side) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 'c-started', 'HOME'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('no calls on a game that has kicked off', ok);
+  begin
+    insert into calls (league_id, user_id, game_id, side) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 'c-out', 'HOME'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('no calls outside the curated slate', ok);
+  begin
+    insert into calls (league_id, user_id, game_id, side, margin) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 'c-in-1', 'AWAY', 0); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a margin of zero is not a call', ok);
+  begin
+    insert into calls (league_id, user_id, game_id, side) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000001', 'c-in-1', 'HOME'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('nobody calls as someone else', ok);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000003'); -- bob, not a member
+  select count(*) into n from calls where league_id = '10000000-0000-0000-0000-000000000007';
+  perform pg_temp.check('a non-member sees no calls', n = 0);
+  begin
+    insert into calls (league_id, user_id, game_id, side) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000003', 'c-in-1', 'HOME'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a non-member cannot call', ok);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- commissioner
+  select count(*) into n from calls where league_id = '10000000-0000-0000-0000-000000000007';
+  perform pg_temp.check('the room sees the call at once, no waiting for kickoff', n = 1);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice takes it back
+  delete from calls where id = cid; get diagnostics n = row_count;
+  perform pg_temp.check('you can take your own call back before kickoff', n = 1);
+  perform pg_temp.as_admin();
+  update leagues set calls = false where id = '10000000-0000-0000-0000-000000000007';
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002');
+  begin
+    insert into calls (league_id, user_id, game_id, side) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 'c-in-1', 'HOME'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('no calls once the commissioner switches them off', ok);
+  perform pg_temp.as_admin();
+  update leagues set calls = true where id = '10000000-0000-0000-0000-000000000007';
+end $$;
+
+-- Tours: you mark your own walkthrough done, and nobody else's.
+do $$ declare n int; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  update profiles set tours = '{"player": "2026-09-09"}' where id = '00000000-0000-0000-0000-000000000002'; get diagnostics n = row_count;
+  perform pg_temp.check('you can mark your own tour done', n = 1);
+  update profiles set tours = '{"player": "never"}' where id = '00000000-0000-0000-0000-000000000001'; get diagnostics n = row_count;
+  perform pg_temp.check('you cannot touch anyone else''s tours', n = 0);
+  perform pg_temp.as_admin();
+end $$;
+
 -- Survivor: the pool switch, entries, picks, the never-twice rule, visibility,
 -- and the entry window. (The college league: alice is in it, bob is not yet.
 -- Its curated slate after the swaps above is c-in-1 and c-started.)

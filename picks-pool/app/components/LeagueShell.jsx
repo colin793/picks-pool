@@ -36,6 +36,9 @@ export default function LeagueShell({ league, sport, slate, profile, isCommish, 
           <SidebarNav base={base} isCommish={isCommish} slateLabel={slate?.label} survivor={Boolean(league.survivor)} />
         </div>
         <div className="space-y-1 border-t border-white/10 pt-4">
+          <Link href={`${base}/help`} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-white/70 hover:bg-white/5 hover:text-white">
+            <Icon.help /> How to play
+          </Link>
           <Link href="/" className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-white/70 hover:bg-white/5 hover:text-white">
             <Icon.home /> My leagues
           </Link>
@@ -50,6 +53,7 @@ export default function LeagueShell({ league, sport, slate, profile, isCommish, 
       <header className="bg-brand px-4 py-3 text-white lg:hidden" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
         <div className="mx-auto flex max-w-2xl items-center gap-3">
           <div className="min-w-0 flex-1">{brand}</div>
+          <Link href={`${base}/help`} className="rounded-md p-1.5 text-white/70 hover:bg-white/10" aria-label="How to play"><Icon.help /></Link>
           <Link href="/" className="rounded-md p-1.5 text-white/70 hover:bg-white/10" aria-label="My leagues"><Icon.home /></Link>
         </div>
       </header>

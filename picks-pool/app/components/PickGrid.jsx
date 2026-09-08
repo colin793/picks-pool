@@ -8,7 +8,7 @@ import { isUpset } from '../../lib/moments';
 // what is visible: your own picks always, others' once the game kicks off,
 // so a hidden pick is simply absent from `picks`.
 // reactions: rows of { entry_id, game_id, user_id, emoji } the viewer may see.
-export default function PickGrid({ games, rows, picks, names, me, now = Date.now(), draws = false, homeFirst = false, scoring = 'straight', reactions = [], leagueId = null, demo = false }) {
+export default function PickGrid({ games, rows, picks, names, me, now = Date.now(), draws = false, homeFirst = false, scoring = 'straight', reactions = [], leagueId = null, demo = false, lock = false }) {
   const rx = new Map(); // `${entry}:${game}` -> { counts, mine }
   for (const r of reactions) {
     const k = `${r.entry_id}:${r.game_id}`;
@@ -40,7 +40,7 @@ export default function PickGrid({ games, rows, picks, names, me, now = Date.now
                 </th>
               );
             })}
-            <th className="text-right">W</th>
+            <th className="text-right">{lock ? 'Pts' : 'W'}</th>
           </tr>
         </thead>
         <tbody>
@@ -79,14 +79,14 @@ export default function PickGrid({ games, rows, picks, names, me, now = Date.now
                         style={!final && color ? { boxShadow: `inset 0 -3px 0 ${color}` } : undefined}
                         title={calledUpset ? 'Called the upset' : won ? 'Correct' : push ? 'Push' : lost ? 'Wrong' : ahead ? 'Leading' : ''}
                       >
-                        {abbr}
+                        {lock && r.lock_game_id === g.id && <span className="mr-0.5" title="Lock of the week">🔒</span>}{abbr}
                       </FlashPill>
                       </RevealCell>
                       {started && <ReactCell leagueId={leagueId} entryId={r.id} gameId={g.id} demo={demo} {...(rx.get(`${r.id}:${g.id}`) ?? {})} />}
                     </td>
                   );
                 })}
-                <td className="num text-right text-base text-good">{r.correct}</td>
+                <td className="num text-right text-base text-good">{lock ? r.points : r.correct}</td>
               </tr>
             );
           })}

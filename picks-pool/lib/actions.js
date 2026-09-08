@@ -63,6 +63,13 @@ export async function updateLeague(leagueId, formData) {
         survivor: formData.get('survivor') === 'on',
         survivor_fee_cents: Math.max(0, Math.round(Number(formData.get('survivor_fee') || 0) * 100)),
       } : {}),
+      // Room modes, same rule: only once the columns exist (the form hides them until then).
+      ...(formData.has('duty') ? {
+        lock_of_week: formData.get('lock_of_week') === 'on',
+        duels: formData.get('duels') === 'on',
+        duty: String(formData.get('duty') || '').trim().slice(0, 120),
+        calls: formData.get('calls') === 'on',
+      } : {}),
     })
     .eq('id', leagueId); // RLS: commissioner only
   if (error) throw new Error(error.message);
@@ -106,7 +113,9 @@ export async function removeMember(leagueId, userId) {
 // picks: { [gameId]: 'HOME' | 'AWAY' }. The database is the enforcement (a
 // pick on a started game is rejected by RLS); this reports what happened
 // instead of pretending everything saved.
-export async function savePicks(leagueId, season, slateKey, picks, tiebreaker) {
+// lock: undefined leaves the lock of the week alone, null clears it, a game
+// id sets it. The entries trigger is the referee (mode on, open game, in slate).
+export async function savePicks(leagueId, season, slateKey, picks, tiebreaker, lock = undefined) {
   const user = await currentUser();
   if (!user) redirect('/login');
   const db = sb();
@@ -160,8 +169,17 @@ export async function savePicks(leagueId, season, slateKey, picks, tiebreaker) {
     const { error } = await db.from('picks').upsert(rows, { onConflict: 'entry_id,game_id' });
     if (error) throw new Error(error.message);
   }
+
+  let lockNote = null;
+  if (lock !== undefined && (lock ?? null) !== (entry.lock_game_id ?? null)) {
+    if (lock && !wanted.some(([id]) => id === lock)) lockNote = 'Pick that game before locking it.';
+    else {
+      const { error } = await db.from('entries').update({ lock_game_id: lock }).eq('id', entry.id); // trigger: mode on, open game, in slate
+      if (error) lockNote = /kicked off/i.test(error.message) ? 'Your lock has kicked off and stays put.' : /does not play/i.test(error.message) ? 'The lock of the week is switched off.' : 'Lock not saved: it has to be one of your open games this week.';
+    }
+  }
   revalidatePath(`/l/${leagueId}`, 'layout');
-  return { saved: rows.length, unchanged: openWanted.length - rows.length, refused, tiebreaker: tbSaved, entryId: entry.id };
+  return { saved: rows.length, unchanged: openWanted.length - rows.length, refused, tiebreaker: tbSaved, entryId: entry.id, lockNote };
 }
 
 export async function withdrawEntry(leagueId, entryId) {
@@ -261,6 +279,26 @@ export async function postMessage(leagueId, formData) {
   revalidatePath(`/l/${leagueId}/chat`);
 }
 
+// Call it: "KC by 10" on an open game. RLS: member, calls on, open game in the slate.
+export async function postCall(leagueId, formData) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  const game_id = String(formData.get('game_id') || '');
+  const side = String(formData.get('side') || '');
+  const marginRaw = String(formData.get('margin') || '').trim();
+  const margin = marginRaw ? Math.min(99, Math.max(1, Math.round(Number(marginRaw)) || 1)) : null;
+  const body = String(formData.get('body') || '').trim().slice(0, 140);
+  if (!game_id || (side !== 'HOME' && side !== 'AWAY')) return;
+  const { error } = await sb().from('calls').insert({ league_id: leagueId, user_id: user.id, game_id, side, margin, body });
+  if (error) throw new Error(/row-level security/i.test(error.message) ? 'That game has kicked off, or calls are switched off.' : error.message);
+  revalidatePath(`/l/${leagueId}/chat`);
+}
+
+export async function deleteCall(leagueId, id) {
+  await sb().from('calls').delete().eq('id', id); // RLS: own before kickoff, or commissioner
+  revalidatePath(`/l/${leagueId}/chat`);
+}
+
 export async function deleteMessage(leagueId, id) {
   await sb().from('messages').delete().eq('id', id); // RLS: own, or commissioner
   revalidatePath(`/l/${leagueId}/chat`);
@@ -333,6 +371,31 @@ export async function setSurvivorPaid(leagueId, userId, season, paid) {
   revalidatePath(`/l/${leagueId}`, 'layout');
 }
 
+// ---------- the matchup fold ----------
+
+// What ESPN's summary says about one game, cached in game_notes: a day
+// before kickoff, forever once the game is final. Anyone signed in may ask;
+// the write is the server's. Returns the notes, or null when ESPN has nothing.
+export async function loadMatchup(gameId) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  const db = sb();
+  const { data: game } = await db.from('games').select('id, sport, state, home_abbr, away_abbr, kickoff').eq('id', String(gameId)).maybeSingle();
+  if (!game) return null;
+  const a = admin();
+  const { data: cached, error } = await a.from('game_notes').select('notes, fetched_at').eq('game_id', game.id).maybeSingle();
+  if (error) return null; // the table is not there yet: the fold shows the room's take only
+  const age = cached ? Date.now() - new Date(cached.fetched_at).getTime() : Infinity;
+  const fresh = cached && (game.state === 'post' || age < 24 * 3600_000);
+  if (fresh) return cached.notes;
+  const { fetchSummary, normalizeSummary, notesEmpty } = await import('./scores/matchup.js');
+  const data = await fetchSummary(game.sport, game.id);
+  const notes = normalizeSummary(data, { abbr: game.home_abbr }, { abbr: game.away_abbr });
+  if (notesEmpty(notes)) return cached?.notes ?? null;
+  await a.from('game_notes').upsert({ game_id: game.id, notes, fetched_at: new Date().toISOString() });
+  return notes;
+}
+
 // ---------- reactions ----------
 
 // One reaction per person per pick: tapping the same emoji again removes it,
@@ -349,6 +412,22 @@ export async function react(leagueId, entryId, gameId, emoji) {
     if (error) throw new Error(error.message);
   }
   revalidatePath(`/l/${leagueId}/board`);
+}
+
+// ---------- tours ----------
+
+// Remember a finished walkthrough on the profile ('player' or 'commish');
+// reset: true forgets it so the tour runs again. RLS: your own row.
+export async function markTour(kind, reset = false) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  if (!['player', 'commish'].includes(kind)) return;
+  const db = sb();
+  const { data } = await db.from('profiles').select('tours').eq('id', user.id).maybeSingle();
+  const tours = { ...(data?.tours ?? {}) };
+  if (reset) delete tours[kind]; else tours[kind] = new Date().toISOString();
+  await db.from('profiles').update({ tours }).eq('id', user.id);
+  revalidatePath('/', 'layout');
 }
 
 // ---------- profile ----------

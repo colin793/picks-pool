@@ -6,6 +6,7 @@ import { fetchAll } from './db';
 import { applyFeatured } from './featured';
 import { featuredRows, loadSurvivor } from './league';
 import { survivorRecapFacts } from './survivor';
+import { receipts } from './calls';
 
 // Results recap: congratulate the winner, show the pot, lightly roast the
 // worst picker. Same text to everyone in the league: the shared roast is the
@@ -69,7 +70,7 @@ async function recapLeague(db, league, season, key, games) {
   const label = games[0]?.slate_label ?? key;
   const { unit, draws } = sportOf(league.sport);
   const scoring = league.scoring ?? 'straight';
-  const { rows, winners, actualTotal, lastGame } = slateResults(games, entries, picks ?? [], { scoring });
+  const { rows, winners, actualTotal, lastGame } = slateResults(games, entries, picks ?? [], { scoring, lock: Boolean(league.lock_of_week) });
   const { pot, share } = potFor(entries, league.entry_fee_cents, winners);
   const winnerNames = winners.map((w) => names.get(w.user_id)).join(' and ');
 
@@ -103,15 +104,24 @@ async function recapLeague(db, league, season, key, games) {
     if (!sv.missing) survivor = survivorRecapFacts(sv.games, sv.entries, sv.picks, key, new Map([...nameMap]));
   }
 
+  // Call it receipts: what people said before kickoff, and what happened.
+  let called = '';
+  if (league.calls !== false) {
+    const { data: calls } = await db.from('calls').select('*').eq('league_id', league.id).in('game_id', games.map((g) => g.id));
+    const lines = receipts(calls ?? [], games, new Map([...nameMap]));
+    if (lines.length) called = `Calls made in the room: ${lines.join(' ')}`;
+  }
+
   const facts = [
     `League: ${league.name}. ${label} results.`,
-    `Winner${winners.length > 1 ? 's (split pot)' : ''}: ${winnerNames}, ${winners[0].correct} correct, wins ${money(share)}${winners.length > 1 ? ' each' : ''}.`,
+    `Winner${winners.length > 1 ? 's (split pot)' : ''}: ${winnerNames}, ${winners[0].correct} correct${league.lock_of_week ? ` (${winners[0].points} points with the lock)` : ''}, wins ${money(share)}${winners.length > 1 ? ' each' : ''}.`,
     `Pot: ${money(pot)} (${entries.length} entries at ${money(league.entry_fee_cents)}).`,
     lastGame ? `Tiebreaker game ${lastGame.away_abbr} @ ${lastGame.home_abbr} totaled ${actualTotal} ${unit}.` : '',
     `Full standings: ${rows.map((r) => `${names.get(r.user_id)} ${r.correct}-${r.incorrect}`).join(', ')}.`,
     `Worst picker: ${worstName} at ${worst.correct}-${worst.incorrect}.`,
     worstMisses.length ? `${worstName}'s ugliest calls: ${worstMisses.join('; ')}.` : '',
     survivor,
+    called,
   ].filter(Boolean).join('\n');
 
   const fallback = `${label} is in the books.\n\n${facts}\n\nSee the full board in the app.`;
@@ -136,6 +146,7 @@ async function aiRecap(facts) {
           'Congratulate the winner by name and state what they won. ' +
           'One light jab at the worst picker: roast the picks, never the person. ' +
           'If survivor facts are given, one sentence on who fell and how many stand. ' +
+          'If calls made in the room are given, quote one back, hit or miss, in one sentence. ' +
           'and only use the facts provided. Everything must come from the facts; invent nothing. ' +
           'No em dashes. Sign off as "The Commissioner\'s Robot."',
         messages: [{ role: 'user', content: facts }],

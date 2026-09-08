@@ -8,10 +8,13 @@ import DevBump from '../components/DevBump';
 import PushToggle from '../components/PushToggle';
 import ChatView from '../components/ChatView';
 import SurvivorView from '../components/SurvivorView';
+import Tour from '../components/Tour';
+import { playerSteps, commishChecklist } from '../../lib/tour';
 import { sport as sportOf } from '../../lib/scores/sports';
 import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, visiblePicks, EPL_GAMES, EPL_PICKS, EPL_NOW, CFB_BOARD, CFB_NOW, SURVIVOR_PREV, SURVIVOR_ENTRIES, visibleSurvivorPicks } from '../../lib/fixtures';
 import { featuredGames } from '../../lib/featured';
 import { survivorStandings } from '../../lib/survivor';
+import { roomTake, takeText } from '../../lib/room';
 import { SPORTS } from '../../lib/scores/sports';
 
 export const dynamic = 'force-dynamic';
@@ -60,9 +63,25 @@ export default function Preview({ searchParams }) {
         <Link href="/dev?view=survivor" className="underline">survivor</Link>
         <Link href="/dev?view=moments" className="underline">moments</Link>
         <Link href="/dev?view=moments&won=1" className="underline">won</Link>
+        <Link href="/dev?view=modes" className="underline">modes</Link>
+        <Link href="/dev?view=tour" className="underline">tour</Link>
         {['picks', 'board'].includes(view) && <DevBump />}
       </div>
-      {view === 'moments' ? (
+      {view === 'tour' ? (
+        // The first-time walkthrough over the picks page, and the commissioner's checklist.
+        <>
+          <AdminView user={{ id: me }} league={{ ...LEAGUE, survivor: false, lock_of_week: false, duels: false, duty: '', calls: true, venmo_handle: '' }} sport={sport} names={NAMES}
+            inviteUrl="https://picks.example.com/join/a1b2c3d4" members={[{ user_id: me, profiles: PLAYERS[0] }]} now={slate} feeRows={[]} owed={[]} paidOut={[]} demo
+            checklist={commishChecklist({ ...LEAGUE, venmo_handle: '' }, { members: 1, pushConfigured: false })} />
+          <Tour demo steps={playerSteps({ ...LEAGUE, survivor: true, lock_of_week: true, duels: true, duty: 'Last place at the end of the month buys the wings' }, sport, { fee: '$5.00' })} />
+        </>
+      ) : view === 'modes' ? (
+        // The board with the room modes on: a points column with locks, the duels card, the loser's duty.
+        <BoardView league={{ ...LEAGUE, lock_of_week: true, duels: true, duty: 'Last place at the end of the month buys the wings' }} sport={sport} label={slate.label} isCurrent
+          slates={[{ key: slate.key, label: 'Demo Week' }, { key: '2026-1-99', label: 'Last week' }]} slateKey={slate.key} games={games}
+          entries={ENTRIES.map((e) => ({ ...e, lock_game_id: { 'u-colin': 'f2', 'u-kevin': 'f3', 'u-sam': 'l1', 'u-jess': 'f1' }[e.user_id] ?? null }))}
+          picks={picks} names={NAMES} me={me} now={NOW} shareUrl="/dev/share" demo />
+      ) : view === 'moments' ? (
         // The board with everything but Monday night final and the top tied: the finale line,
         // the rivalry line, an upset chip. ?won=1 finishes Monday night with Colin winning: confetti.
         (() => {
@@ -91,7 +110,11 @@ export default function Preview({ searchParams }) {
         <SurvivorView league={{ ...LEAGUE, survivor: true, survivor_fee_cents: 2000 }} sport={sport} slate={slate} me={NAMES.has(searchParams?.as) ? searchParams.as : me} now={NOW} fixedNow={NOW} demo base="/dev"
           games={[...SURVIVOR_PREV, ...games]} entries={SURVIVOR_ENTRIES} picks={visibleSurvivorPicks(NAMES.has(searchParams?.as) ? searchParams.as : me, NOW)} names={NAMES} />
       ) : view === 'chat' ? (
-        <ChatView leagueId={LEAGUE.id} me={me} isCommish names={NAMES} demo messages={[
+        <ChatView leagueId={LEAGUE.id} me={me} isCommish names={NAMES} demo callsOn games={games} now={NOW} calls={[
+          { id: 'c1', user_id: 'u-kevin', game_id: 'f3', side: 'HOME', margin: 7, body: 'Bills by a touchdown, book it', created_at: new Date(NOW - 7 * 3600_000).toISOString() },
+          { id: 'c2', user_id: 'u-jess', game_id: 'f1', side: 'HOME', margin: null, body: '', created_at: new Date(NOW - 80 * 3600_000).toISOString() },
+          { id: 'c3', user_id: 'u-colin', game_id: 'o3', side: 'AWAY', margin: 3, body: 'Jets on the road, yes really', created_at: new Date(NOW - 600_000).toISOString() },
+        ]} messages={[
           { id: 'm1', user_id: 'u-kevin', body: 'who took the Jets lol', created_at: new Date(NOW - 3600_000).toISOString() },
           { id: 'm2', user_id: 'u-colin', body: 'me. and I would do it again', created_at: new Date(NOW - 3500_000).toISOString() },
           { id: 'm3', user_id: 'u-sam', body: 'GB in the red zone, Colin is sweating', created_at: new Date(NOW - 120_000).toISOString() },
@@ -171,8 +194,10 @@ export default function Preview({ searchParams }) {
             <span className="pill pill-good">Entry paid</span>
           </div>
           <PicksForm leagueId={LEAGUE.id} season={2026} slate={slate.key} games={games} initialPicks={myPicks}
-            initialTiebreaker={myEntry.tiebreaker} entry={myEntry} unit={sport.unit} fixedNow={NOW}
-            allPicks={picks} entryCount={ENTRIES.length} />
+            initialTiebreaker={myEntry.tiebreaker} entry={{ ...myEntry, lock_game_id: 'o1' }} unit={sport.unit} fixedNow={NOW}
+            allPicks={picks} entryCount={ENTRIES.length} demo lockMode
+            takes={(() => { const t = roomTake([...SURVIVOR_PREV, ...games], ENTRIES, picks, me); const o = {};
+              for (const g of games) for (const a of [g.home_abbr, g.away_abbr]) o[a] = takeText(a, t.get(a), { me, names: NAMES }); return o; })()} />
         </>
       )}
     </LeagueShell>

@@ -54,6 +54,9 @@ function game(id, away, home, slot, opts = {}) {
     over_under: opts.ou ?? null,
     weather: opts.wx ?? '',
     temperature: opts.temp ?? null,
+    broadcast: opts.tv ?? (slot === 'thu' ? 'Prime Video' : slot === 'snf' ? 'NBC' : slot === 'mnf' ? 'ESPN' : slot === 'late' ? 'FOX' : 'CBS'),
+    home_record: opts.hr ?? '1-0',
+    away_record: opts.ar ?? '0-1',
   };
 }
 

@@ -32,22 +32,23 @@ export function rivalryText(rows, me, names) {
   const i = rows.findIndex((r) => r.user_id === me);
   if (i < 0 || rows.length < 2) return '';
   const nameOf = (r) => names.get(r.user_id)?.display_name ?? 'Player';
+  const pts = (r) => r.points ?? r.correct; // points carry the lock of the week when the league plays it
   const mine = rows[i];
-  const above = [...rows.slice(0, i)].reverse().find((r) => r.correct > mine.correct);
-  const peer = rows.find((r) => r.user_id !== me && r.correct === mine.correct);
-  if (above) return `${above.correct - mine.correct} behind ${nameOf(above)}`;
-  if (peer) return `Tied with ${nameOf(peer)} at ${mine.correct}`;
-  const below = rows.slice(i + 1).find((r) => r.correct < mine.correct);
+  const above = [...rows.slice(0, i)].reverse().find((r) => pts(r) > pts(mine));
+  const peer = rows.find((r) => r.user_id !== me && pts(r) === pts(mine));
+  if (above) return `${pts(above) - pts(mine)} behind ${nameOf(above)}`;
+  if (peer) return `Tied with ${nameOf(peer)} at ${pts(mine)}`;
+  const below = rows.slice(i + 1).find((r) => pts(r) < pts(mine));
   if (!below) return '';
-  return mine.rank === 1 ? `You lead by ${mine.correct - below.correct}; ${nameOf(below)} is next` : `${nameOf(below)} is ${mine.correct - below.correct} behind you`;
+  return mine.rank === 1 ? `You lead by ${pts(mine) - pts(below)}; ${nameOf(below)} is next` : `${nameOf(below)} is ${pts(mine) - pts(below)} behind you`;
 }
 
 // The finale. When every other game is final and the top is shared, the last
 // game decides: by the picks if the leaders split on it, by the tiebreaker if
 // they did not. Other players' tiebreakers are null until the finale kicks
 // off (the board view hides them), and the text says so.
-export function finaleText(games, entries, picks, names, { scoring = 'straight', homeFirst = false, me = null } = {}) {
-  const r = slateResults(games, entries, picks, { scoring });
+export function finaleText(games, entries, picks, names, { scoring = 'straight', homeFirst = false, me = null, lock = false } = {}) {
+  const r = slateResults(games, entries, picks, { scoring, lock });
   if (!r.lastGame || r.complete || !r.rows.length) return null;
   const last = r.lastGame;
   const others = games.filter((g) => g.id !== last.id);

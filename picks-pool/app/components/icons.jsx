@@ -23,6 +23,9 @@ export const Icon = {
   survivor: (p) => (
     <svg {...base} {...p}><path d="M12 3l8 3v6c0 4.6-3.4 8.4-8 9-4.6-.6-8-4.4-8-9V6l8-3z" /><path d="M9 12l2 2 4-4" /></svg>
   ),
+  help: (p) => (
+    <svg {...base} {...p}><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5" /><path d="M12 17h.01" /></svg>
+  ),
   home: (p) => (
     <svg {...base} {...p}><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>
   ),

@@ -14,11 +14,18 @@ const COLS = [
   { key: 'slates', label: 'Played' },
 ];
 
-export default function SeasonTable({ rows, me }) {
+// lock: show points and lock hits; duels: show the duel record.
+export default function SeasonTable({ rows, me, lock = false, duels = false }) {
   const [sort, setSort] = useState({ key: 'wins', dir: -1 });
+  const cols = useMemo(() => {
+    const out = [...COLS];
+    if (lock) out.splice(4, 0, { key: 'points', label: 'Pts' }, { key: 'locks', label: 'Locks' });
+    if (duels) out.splice(3, 0, { key: 'duelWins', label: 'Duels' });
+    return out;
+  }, [lock, duels]);
 
   const sorted = useMemo(() => {
-    const col = COLS.find((c) => c.key === sort.key);
+    const col = cols.find((c) => c.key === sort.key);
     return [...rows].sort((a, b) => {
       const av = a[sort.key], bv = b[sort.key];
       if (av == null) return 1;
@@ -26,7 +33,7 @@ export default function SeasonTable({ rows, me }) {
       if (col?.str) return String(av).localeCompare(String(bv)) * sort.dir;
       return (av - bv) * sort.dir || b.wins - a.wins || b.correct - a.correct;
     });
-  }, [rows, sort]);
+  }, [rows, sort, cols]);
 
   function click(col) {
     setSort((s) => (s.key === col.key ? { key: col.key, dir: -s.dir } : { key: col.key, dir: col.asc ? 1 : -1 }));
@@ -37,7 +44,7 @@ export default function SeasonTable({ rows, me }) {
       <table className="tbl">
         <thead>
           <tr>
-            {COLS.map((c, i) => (
+            {cols.map((c, i) => (
               <th key={c.key} onClick={() => click(c)} className={`cursor-pointer select-none hover:text-ink ${i ? 'text-right' : ''} ${i === 0 ? 'sticky left-0 bg-surface' : ''}`}>
                 {c.label}{sort.key === c.key ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}
               </th>
@@ -50,14 +57,17 @@ export default function SeasonTable({ rows, me }) {
               <td className="sticky left-0 whitespace-nowrap bg-surface"><span className="mr-1.5">{r.emoji}</span>{r.name}</td>
               <td className="num text-right text-base">{r.wins}</td>
               <td className="text-right">{money(r.money)}</td>
+              {duels && <td className="text-right">{r.duels}</td>}
               <td className="text-right">{r.avgFinish == null ? '–' : r.avgFinish.toFixed(1)}</td>
+              {lock && <td className="num text-right">{r.points}</td>}
+              {lock && <td className="text-right">{r.locks}</td>}
               <td className="num text-right text-good">{r.correct}</td>
               <td className="num text-right text-muted">{r.incorrect}</td>
               <td className="text-right">{(r.pct * 100).toFixed(0)}%</td>
               <td className="text-right">{r.slates}</td>
             </tr>
           ))}
-          {rows.length === 0 && <tr><td colSpan={COLS.length} className="py-6 text-center text-muted">No entries yet this season.</td></tr>}
+          {rows.length === 0 && <tr><td colSpan={cols.length} className="py-6 text-center text-muted">No entries yet this season.</td></tr>}
         </tbody>
       </table>
     </div>

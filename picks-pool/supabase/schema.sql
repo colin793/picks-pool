@@ -32,7 +32,8 @@ create table public.profiles (
   email text not null default '',
   display_name text not null default '',
   emoji text not null default '🏈',
-  venmo_handle text not null default ''
+  venmo_handle text not null default '',
+  tours jsonb not null default '{}'::jsonb -- walkthroughs finished: {"player": "<when>", "commish": "<when>"}
 );
 
 create table public.leagues (
@@ -51,6 +52,14 @@ create table public.leagues (
   -- Survivor pool beside the pick'em: on/off, and its once-a-season buy-in.
   survivor boolean not null default false,
   survivor_fee_cents int not null default 1000,
+  -- Room modes, the commissioner's switches, all off to start. lock_of_week:
+  -- one pick a week counts double. duels: weekly head-to-head pairings beside
+  -- the standings. duty: the loser's duty, in the commissioner's words.
+  lock_of_week boolean not null default false,
+  duels boolean not null default false,
+  duty text not null default '',
+  -- Call it: graded predictions in chat. On by default; changes no scores.
+  calls boolean not null default true,
   recap_enabled boolean not null default true,
   reminders_enabled boolean not null default true,
   commissioner uuid not null references public.profiles(id),
@@ -100,9 +109,21 @@ create table public.games (
   home_spread numeric,
   over_under numeric,
   weather text not null default '',      -- "Rain"
-  temperature int                        -- Fahrenheit
+  temperature int,                       -- Fahrenheit
+  broadcast text not null default '',    -- "CBS", "Prime Video": where to watch
+  home_record text not null default '',  -- "2-0" coming in
+  away_record text not null default ''
 );
 create index games_slate_idx on public.games (sport, season, slate_key);
+
+-- What ESPN's per-game summary said, boiled down (lib/scores/matchup.js),
+-- fetched the first time someone opens a card's "About this matchup" fold.
+-- Read by anyone signed in; written by the server (service role).
+create table public.game_notes (
+  game_id text primary key references public.games on delete cascade,
+  notes jsonb not null default '{}'::jsonb,
+  fetched_at timestamptz not null default now()
+);
 
 -- One row per sport: where "now" is, plus the sync throttle timestamp.
 create table public.sport_state (
@@ -134,6 +155,7 @@ create table public.entries (
   season int not null,
   slate_key text not null,
   tiebreaker int,                    -- predicted total points, final game of the slate
+  lock_game_id text references public.games, -- lock of the week: one picked game counts double
   paid boolean not null default false,
   created_at timestamptz not null default now(),
   unique (league_id, user_id, season, slate_key)
@@ -245,6 +267,21 @@ create table public.survivor_picks (
 );
 create index survivor_picks_league_idx on public.survivor_picks (league_id, season);
 
+-- Call it: "KC by 10", pinned in the room and graded when the game goes
+-- final. Any member, any open game on the league's slate; delete your own
+-- before kickoff, the commissioner any time.
+create table public.calls (
+  id uuid primary key default gen_random_uuid(),
+  league_id uuid not null references public.leagues on delete cascade,
+  user_id uuid not null references public.profiles on delete cascade,
+  game_id text not null references public.games,
+  side text not null check (side in ('HOME', 'AWAY')),
+  margin int check (margin is null or (margin >= 1 and margin <= 99)),
+  body text not null default '' check (char_length(body) <= 140),
+  created_at timestamptz not null default now()
+);
+create index calls_league_idx on public.calls (league_id, created_at desc);
+
 -- ---------- helper functions ----------
 -- security definer so policies can consult tables the caller may not read.
 
@@ -333,6 +370,18 @@ language sql security definer set search_path = public stable as $$
   );
 $$;
 
+-- Call it: may the caller make a call on this game? Member, calls on, game
+-- not started, the league's sport, in the league's slate.
+create function public.call_open(l uuid, g text) returns boolean
+language sql security definer set search_path = public stable as $$
+  select exists (
+    select 1 from leagues lg join games gm on gm.id = g
+    where lg.id = l and lg.calls and is_member(l)
+      and gm.kickoff > now() and gm.sport = lg.sport
+      and in_slate(l, gm.season, gm.slate_key, g)
+  );
+$$;
+
 -- Survivor: the team is the game's side, whatever the client sent.
 create function public.survivor_picks_fill() returns trigger
 language plpgsql security definer set search_path = public as $$
@@ -370,13 +419,21 @@ $$;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Guard entry updates: only the commissioner flips paid; tiebreaker locks at the
--- slate's final kickoff; nobody moves an entry to another league/user/slate.
+-- Guard entries: only the commissioner flips paid; the tiebreaker locks at the
+-- slate's final kickoff; nobody moves an entry to another league/user/slate;
+-- the lock of the week is one of your open games, set only while the league
+-- plays the mode and neither the old nor the new lock has kicked off.
 -- Service role (server jobs) bypasses.
 create function public.entries_guard() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if auth.role() = 'service_role' or auth.uid() is null then
+    return new;
+  end if;
+  if tg_op = 'INSERT' then
+    if new.lock_game_id is not null then
+      raise exception 'Enter first, then choose a lock';
+    end if;
     return new;
   end if;
   if new.league_id <> old.league_id or new.user_id <> old.user_id
@@ -390,10 +447,21 @@ begin
      and now() > slate_lock_at(old.league_id, old.season, old.slate_key) then
     raise exception 'Tiebreaker is locked';
   end if;
+  if new.lock_game_id is distinct from old.lock_game_id then
+    if not exists (select 1 from leagues where id = old.league_id and lock_of_week) then
+      raise exception 'This league does not play a lock of the week';
+    end if;
+    if old.lock_game_id is not null and exists (select 1 from games where id = old.lock_game_id and kickoff <= now()) then
+      raise exception 'Your lock has kicked off';
+    end if;
+    if new.lock_game_id is not null and not pick_open(old.id, new.lock_game_id) then
+      raise exception 'A lock must be one of your open games this week';
+    end if;
+  end if;
   return new;
 end;
 $$;
-create trigger entries_guard before update on public.entries
+create trigger entries_guard before insert or update on public.entries
   for each row execute function public.entries_guard();
 
 -- A league's sport is fixed at creation: entries and picks are keyed to it.
@@ -420,6 +488,7 @@ alter table public.leagues enable row level security;
 alter table public.memberships enable row level security;
 alter table public.games enable row level security;
 alter table public.sport_state enable row level security;
+alter table public.game_notes enable row level security;
 alter table public.slate_games enable row level security;
 alter table public.entries enable row level security;
 alter table public.picks enable row level security;
@@ -431,11 +500,13 @@ alter table public.messages enable row level security;
 alter table public.reactions enable row level security;
 alter table public.survivor_entries enable row level security;
 alter table public.survivor_picks enable row level security;
+alter table public.calls enable row level security;
 
 -- reference data: read-only for anyone signed in.
 create policy sports_read on public.sports for select to authenticated using (true);
 create policy games_read on public.games for select to authenticated using (true);
 create policy sport_state_read on public.sport_state for select to authenticated using (true);
+create policy game_notes_read on public.game_notes for select to authenticated using (true);
 
 -- profiles: you can see people you share a league with (leaderboards need
 -- names and emoji, payouts need Venmo handles). Only you can edit yours.
@@ -562,6 +633,14 @@ create policy survivor_picks_update on public.survivor_picks for update to authe
 create policy survivor_picks_delete on public.survivor_picks for delete to authenticated
   using (user_id = auth.uid() and exists (select 1 from games g where g.id = game_id and g.kickoff > now()));
 
+-- calls: the room reads them; you post as yourself on an open game; you
+-- take back your own before kickoff, the commissioner any time.
+create policy calls_read on public.calls for select to authenticated using (is_member(league_id));
+create policy calls_insert on public.calls for insert to authenticated
+  with check (user_id = auth.uid() and call_open(league_id, game_id));
+create policy calls_delete on public.calls for delete to authenticated
+  using ((user_id = auth.uid() and exists (select 1 from games g where g.id = game_id and g.kickoff > now())) or is_commissioner(league_id));
+
 -- push subscriptions: your own devices, nothing else.
 create policy push_subscriptions_read on public.push_subscriptions for select to authenticated
   using (user_id = auth.uid());
@@ -573,14 +652,19 @@ create policy push_subscriptions_delete on public.push_subscriptions for delete 
   using (user_id = auth.uid());
 
 -- Leaderboard view: other players' tiebreaker stays null until the slate's
--- final game has kicked off.
+-- final game has kicked off, and their lock until its game kicks off.
 create view public.entries_board with (security_invoker = on) as
 select e.id, e.league_id, e.user_id, e.season, e.slate_key, e.paid, e.created_at,
   case
     when e.user_id = auth.uid() then e.tiebreaker
     when now() >= slate_lock_at(e.league_id, e.season, e.slate_key) then e.tiebreaker
     else null
-  end as tiebreaker
+  end as tiebreaker,
+  case
+    when e.user_id = auth.uid() then e.lock_game_id
+    when exists (select 1 from games g where g.id = e.lock_game_id and g.kickoff <= now()) then e.lock_game_id
+    else null
+  end as lock_game_id
 from public.entries e;
 
 -- Accounts that already exist in auth.users (an upgrade from v1, or a reset)

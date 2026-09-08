@@ -16,8 +16,9 @@ function dayOf(iso) {
 // allPicks: every pick the viewer may see (own always, others' once a game
 // kicks off); entryCount: how many entries the slate has. Together they say
 // how the room split on a locked game.
-export default function PicksForm({ leagueId, season, slate, games, initialPicks, initialTiebreaker, entry, unit = 'points', draws = false, homeFirst = false, serverNow, fixedNow, allPicks = [], entryCount = 0, scoring = 'straight' }) {
+export default function PicksForm({ leagueId, season, slate, games, initialPicks, initialTiebreaker, entry, unit = 'points', draws = false, homeFirst = false, serverNow, fixedNow, allPicks = [], entryCount = 0, scoring = 'straight', takes = null, demo = false, lockMode = false }) {
   const [picks, setPicks] = useState(initialPicks);
+  const [lock, setLock] = useState(entry?.lock_game_id ?? null); // lock of the week, when the league plays it
   const [tb, setTb] = useState(initialTiebreaker ?? '');
   const [msg, setMsg] = useState(null); // { kind: 'ok'|'warn'|'err', text }
   const [pending, start] = useTransition();
@@ -39,6 +40,9 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
   const pickedOpen = openGames.filter((g) => picks[g.id]).length;
   const entered = Boolean(entry);
   const canWithdraw = entered && !games.some((g) => picks[g.id] && new Date(g.kickoff).getTime() <= now);
+
+  // The room's take per side of each card, from lib/room.js lines keyed by team.
+  const takeFor = (g) => (takes ? { home: takes[g.home_abbr] ?? [], away: takes[g.away_abbr] ?? [] } : null);
 
   const groups = useMemo(() => {
     const m = new Map();
@@ -75,8 +79,10 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
     setMsg(null);
     start(async () => {
       try {
-        const r = await savePicks(leagueId, season, slate, picks, tb);
-        if (r.refused.length) {
+        const r = await savePicks(leagueId, season, slate, picks, tb, lockMode ? lock : undefined);
+        if (r.lockNote) {
+          setMsg({ kind: 'warn', text: `${r.saved} pick${r.saved === 1 ? '' : 's'} saved. ${r.lockNote}` });
+        } else if (r.refused.length) {
           const names = r.refused.map((id) => { const g = games.find((x) => x.id === id); return g ? `${g.away_abbr} @ ${g.home_abbr}` : id; });
           setMsg({ kind: 'warn', text: `${r.saved} pick${r.saved === 1 ? '' : 's'} saved. Already kicked off, not saved: ${names.join(', ')}.` });
         } else if (!entered) {
@@ -107,7 +113,8 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
           <h2 className="eyebrow mb-2">{day}</h2>
           <div className="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(min(100%,330px),1fr))]">
             {gs.map((g) => (
-              <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} scoring={scoring}
+              <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} scoring={scoring} take={takeFor(g)} demo={demo}
+                lockMode={lockMode} isLock={lock === g.id} onLock={() => setLock((l) => (l === g.id ? null : g.id))}
                 onPick={(side) => setPicks((p) => ({ ...p, [g.id]: side }))} />
             ))}
           </div>
@@ -129,7 +136,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
             {open && (
               <div className="mt-2 grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(min(100%,330px),1fr))]">
                 {gs.map((g) => (
-                  <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} scoring={scoring} />
+                  <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} scoring={scoring} take={takeFor(g)} demo={demo} lockMode={lockMode} isLock={lock === g.id} />
                 ))}
               </div>
             )}
