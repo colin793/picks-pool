@@ -108,6 +108,34 @@ assert.equal(row.home_color, '#002a5c'); // normalized to a lowercase 6-digit he
 assert.equal(row.away_color, '#002244'); // a leading # from ESPN is tolerated
 assert.equal(row.home_rank, null);        // no curatedRank on the event: unranked
 assert.equal(row.home_conf, '');
+assert.equal(row.broadcast, '');          // no broadcasts block: nothing to show
+assert.equal(row.home_record, '');
+
+// Where to watch and the records coming in ride along when ESPN sends them.
+const aired = normalizeEvent('nfl', event({
+  competitions: [{
+    broadcasts: [{ market: 'national', names: ['CBS'] }],
+    competitors: [
+      { homeAway: 'home', score: '0', team: { abbreviation: 'SEA' }, records: [{ name: 'overall', type: 'total', summary: '2-0' }, { type: 'home', summary: '1-0' }] },
+      { homeAway: 'away', score: '0', team: { abbreviation: 'NE' }, records: [{ type: 'total', summary: '1-1' }] },
+    ],
+  }],
+}), W1);
+assert.equal(aired.broadcast, 'CBS');
+assert.equal(aired.home_record, '2-0');
+assert.equal(aired.away_record, '1-1');
+// A regional feed is better than nothing; a record that is not a record is dropped.
+const regional = normalizeEvent('nfl', event({
+  competitions: [{
+    geoBroadcasts: [{ media: { shortName: 'FOX' } }],
+    competitors: [
+      { homeAway: 'home', score: '0', team: { abbreviation: 'SEA' }, records: [{ type: 'total', summary: 'n/a' }] },
+      { homeAway: 'away', score: '0', team: { abbreviation: 'NE' } },
+    ],
+  }],
+}), W1);
+assert.equal(regional.broadcast, 'FOX');
+assert.equal(regional.home_record, '');
 
 // College football: the AP rank rides along, 99 means unranked, conference id is kept as text.
 const ranked = normalizeEvent('cfb', event({

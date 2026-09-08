@@ -63,6 +63,10 @@ export function normalizeEvent(sportKey, ev, slate) {
     // The line, from the home side: -3.5 means the home team is favored by 3.5.
     home_spread: line.homeSpread,
     over_under: line.overUnder,
+    // Where to watch, and each side's record coming in ("2-0"). Both ride the scoreboard feed.
+    broadcast: broadcast(comp),
+    home_record: record(home),
+    away_record: record(away),
     weather: String(ev.weather?.displayValue ?? '').slice(0, 40),
     temperature: Number.isFinite(Number(ev.weather?.temperature)) && ev.weather?.temperature != null ? Math.round(Number(ev.weather.temperature)) : null,
   };
@@ -88,6 +92,21 @@ function odds(o, home, away) {
   else if (Number.isFinite(Number(o.spread))) homeFavored = Number(o.spread) < 0; // ESPN's spread is from the home side
   else return { homeSpread: null, overUnder };
   return { homeSpread: homeFavored ? -mag : mag, overUnder };
+}
+
+// "CBS", "Prime Video", "ESPN". The national feed first, else the first regional one.
+function broadcast(comp) {
+  const names = comp?.broadcasts?.flatMap((b) => b?.names ?? []).filter(Boolean);
+  if (names?.length) return String(names[0]).slice(0, 40);
+  const geo = comp?.geoBroadcasts?.find((b) => b?.media?.shortName);
+  return geo ? String(geo.media.shortName).slice(0, 40) : '';
+}
+
+// "2-0" (or "2-0-1"): the overall record ESPN sends with each competitor.
+function record(c) {
+  const r = (c?.records ?? []).find((x) => x?.type === 'total' || x?.name === 'overall') ?? c?.records?.[0];
+  const v = String(r?.summary ?? '').trim();
+  return /^\d+-\d+(-\d+)?$/.test(v) ? v : '';
 }
 
 // AP Top 25 rank from ESPN's curatedRank (99 means unranked), else null.

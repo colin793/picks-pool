@@ -333,6 +333,31 @@ export async function setSurvivorPaid(leagueId, userId, season, paid) {
   revalidatePath(`/l/${leagueId}`, 'layout');
 }
 
+// ---------- the matchup fold ----------
+
+// What ESPN's summary says about one game, cached in game_notes: a day
+// before kickoff, forever once the game is final. Anyone signed in may ask;
+// the write is the server's. Returns the notes, or null when ESPN has nothing.
+export async function loadMatchup(gameId) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  const db = sb();
+  const { data: game } = await db.from('games').select('id, sport, state, home_abbr, away_abbr, kickoff').eq('id', String(gameId)).maybeSingle();
+  if (!game) return null;
+  const a = admin();
+  const { data: cached, error } = await a.from('game_notes').select('notes, fetched_at').eq('game_id', game.id).maybeSingle();
+  if (error) return null; // the table is not there yet: the fold shows the room's take only
+  const age = cached ? Date.now() - new Date(cached.fetched_at).getTime() : Infinity;
+  const fresh = cached && (game.state === 'post' || age < 24 * 3600_000);
+  if (fresh) return cached.notes;
+  const { fetchSummary, normalizeSummary, notesEmpty } = await import('./scores/matchup.js');
+  const data = await fetchSummary(game.sport, game.id);
+  const notes = normalizeSummary(data, { abbr: game.home_abbr }, { abbr: game.away_abbr });
+  if (notesEmpty(notes)) return cached?.notes ?? null;
+  await a.from('game_notes').upsert({ game_id: game.id, notes, fetched_at: new Date().toISOString() });
+  return notes;
+}
+
 // ---------- reactions ----------
 
 // One reaction per person per pick: tapping the same emoji again removes it,

@@ -100,9 +100,21 @@ create table public.games (
   home_spread numeric,
   over_under numeric,
   weather text not null default '',      -- "Rain"
-  temperature int                        -- Fahrenheit
+  temperature int,                       -- Fahrenheit
+  broadcast text not null default '',    -- "CBS", "Prime Video": where to watch
+  home_record text not null default '',  -- "2-0" coming in
+  away_record text not null default ''
 );
 create index games_slate_idx on public.games (sport, season, slate_key);
+
+-- What ESPN's per-game summary said, boiled down (lib/scores/matchup.js),
+-- fetched the first time someone opens a card's "About this matchup" fold.
+-- Read by anyone signed in; written by the server (service role).
+create table public.game_notes (
+  game_id text primary key references public.games on delete cascade,
+  notes jsonb not null default '{}'::jsonb,
+  fetched_at timestamptz not null default now()
+);
 
 -- One row per sport: where "now" is, plus the sync throttle timestamp.
 create table public.sport_state (
@@ -420,6 +432,7 @@ alter table public.leagues enable row level security;
 alter table public.memberships enable row level security;
 alter table public.games enable row level security;
 alter table public.sport_state enable row level security;
+alter table public.game_notes enable row level security;
 alter table public.slate_games enable row level security;
 alter table public.entries enable row level security;
 alter table public.picks enable row level security;
@@ -436,6 +449,7 @@ alter table public.survivor_picks enable row level security;
 create policy sports_read on public.sports for select to authenticated using (true);
 create policy games_read on public.games for select to authenticated using (true);
 create policy sport_state_read on public.sport_state for select to authenticated using (true);
+create policy game_notes_read on public.game_notes for select to authenticated using (true);
 
 -- profiles: you can see people you share a league with (leaderboards need
 -- names and emoji, payouts need Venmo handles). Only you can edit yours.

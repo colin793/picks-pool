@@ -14,6 +14,7 @@ drop table if exists public.payouts cascade;
 drop table if exists public.picks cascade;
 drop table if exists public.entries cascade;
 drop table if exists public.slate_games cascade; -- v2.1
+drop table if exists public.game_notes cascade;    -- v2.8
 drop table if exists public.games cascade;
 drop table if exists public.meta cascade;         -- v1
 drop table if exists public.sport_state cascade;  -- v2

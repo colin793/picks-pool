@@ -1,4 +1,5 @@
-import { leagueContext, currentSlate, loadSlate, slateList } from '../../../lib/league';
+import { leagueContext, currentSlate, loadSlate, slateList, loadSeason } from '../../../lib/league';
+import { roomTake, takeText } from '../../../lib/room';
 import { slateResults } from '../../../lib/stats';
 import { wrapText } from '../../../lib/moments';
 import { Dismissable } from '../../components/Pops';
@@ -19,7 +20,7 @@ export default async function PicksPage({ params }) {
     return <div className="card"><p>No games synced yet for {sport.name}. ESPN usually shows up within a minute; refresh.</p></div>;
   }
 
-  const { games, board, curated, entries, picks: visible } = await loadSlate(db, league, slate.season, slate.key);
+  const { games, board, curated, entries, picks: visible, names } = await loadSlate(db, league, slate.season, slate.key);
   const entry = entries.find((e) => e.user_id === user.id) ?? null;
   const { data: myPicks } = entry
     ? await db.from('picks').select('game_id, picked').eq('entry_id', entry.id)
@@ -60,6 +61,13 @@ export default async function PicksPage({ params }) {
       if (text) wrap = { key: prev.key, text };
     }
   }
+
+  // The room's take on every team on this slate, from the season so far.
+  // Picks come through RLS, so only kicked-off games are in the history.
+  const season = await loadSeason(db, league, slate.season);
+  const teamTakes = roomTake(season.games, season.entries, season.picks, user.id);
+  const takes = {};
+  for (const g of games) for (const abbr of [g.home_abbr, g.away_abbr]) takes[abbr] = takeText(abbr, teamTakes.get(abbr), { me: user.id, names });
 
   const payLink = league.venmo_handle && league.entry_fee_cents > 0
     ? venmoLink(league.venmo_handle, league.entry_fee_cents, `${league.name} ${slate.label}`)
@@ -114,6 +122,7 @@ export default async function PicksPage({ params }) {
           allPicks={visible}
           entryCount={entries.length}
           scoring={league.scoring}
+          takes={takes}
         />
       )}
     </>

@@ -12,6 +12,7 @@ import { sport as sportOf } from '../../lib/scores/sports';
 import { LEAGUE, GAMES, ENTRIES, NAMES, PLAYERS, NOW, visiblePicks, EPL_GAMES, EPL_PICKS, EPL_NOW, CFB_BOARD, CFB_NOW, SURVIVOR_PREV, SURVIVOR_ENTRIES, visibleSurvivorPicks } from '../../lib/fixtures';
 import { featuredGames } from '../../lib/featured';
 import { survivorStandings } from '../../lib/survivor';
+import { roomTake, takeText } from '../../lib/room';
 import { SPORTS } from '../../lib/scores/sports';
 
 export const dynamic = 'force-dynamic';
@@ -172,7 +173,9 @@ export default function Preview({ searchParams }) {
           </div>
           <PicksForm leagueId={LEAGUE.id} season={2026} slate={slate.key} games={games} initialPicks={myPicks}
             initialTiebreaker={myEntry.tiebreaker} entry={myEntry} unit={sport.unit} fixedNow={NOW}
-            allPicks={picks} entryCount={ENTRIES.length} />
+            allPicks={picks} entryCount={ENTRIES.length} demo
+            takes={(() => { const t = roomTake([...SURVIVOR_PREV, ...games], ENTRIES, picks, me); const o = {};
+              for (const g of games) for (const a of [g.home_abbr, g.away_abbr]) o[a] = takeText(a, t.get(a), { me, names: NAMES }); return o; })()} />
         </>
       )}
     </LeagueShell>

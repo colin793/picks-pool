@@ -6,11 +6,12 @@ import { useFlash } from './Flash';
 import { rankedAbbr } from '../../lib/featured';
 import { lineText, weatherText, consensusText, favored } from '../../lib/line';
 import { isUpset } from '../../lib/moments';
+import MatchupFold from './MatchupFold';
 
 // One matchup. `pick` is 'HOME' | 'AWAY' | undefined; `onPick(side)` when open.
 // `consensus` is { HOME, AWAY, TIE, total } for a locked game (everyone's
 // picks are visible once it kicks off); undefined before that.
-export default function GameCard({ game: g, pick, onPick, now, draws = false, homeFirst = false, consensus, scoring = 'straight' }) {
+export default function GameCard({ game: g, pick, onPick, now, draws = false, homeFirst = false, consensus, scoring = 'straight', take = null, demo = false }) {
   const locked = new Date(g.kickoff).getTime() <= now;
   const final = g.state === 'post';
   const live = g.state === 'in';
@@ -95,6 +96,7 @@ export default function GameCard({ game: g, pick, onPick, now, draws = false, ho
   if (!final && line && spread && g.over_under != null) extras.push({ key: 'ou', node: <span>O/U {g.over_under}</span> });
   if (final && line && !split && !spread) extras.push({ key: 'line', node: <span>Line was {line}</span> });
   if (!final && wx) extras.push({ key: 'wx', node: <span>{wx}</span> });
+  if (!final && g.broadcast) extras.push({ key: 'tv', node: <span title="Where to watch">📺 {g.broadcast}</span> });
   if (split) extras.push({ key: 'split', node: <span className={split.lone ? 'font-semibold text-warn' : ''}>{split.lone ? '🐺 ' : ''}{split.text}</span> });
 
   return (
@@ -142,6 +144,7 @@ export default function GameCard({ game: g, pick, onPick, now, draws = false, ho
       {live && g.last_play && (
         <p className="mt-1 truncate px-1 text-[11px] italic text-muted" title={g.last_play}>{g.last_play}</p>
       )}
+      {take && <MatchupFold game={g} take={take} homeFirst={homeFirst} demo={demo} />}
     </div>
   );
 }
