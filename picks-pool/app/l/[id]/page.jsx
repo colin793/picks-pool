@@ -1,4 +1,7 @@
-import { leagueContext, currentSlate, loadSlate } from '../../../lib/league';
+import { leagueContext, currentSlate, loadSlate, slateList } from '../../../lib/league';
+import { slateResults } from '../../../lib/stats';
+import { wrapText } from '../../../lib/moments';
+import { Dismissable } from '../../components/Pops';
 import { venmoLink, money } from '../../../lib/stats';
 import PicksForm from '../../components/PicksForm';
 import LiveRefresh from '../../components/LiveRefresh';
@@ -45,6 +48,19 @@ export default async function PicksPage({ params }) {
     }
   }
 
+  // The week wrap: until this slate's first kickoff, one dismissible line on
+  // how the last one ended. The email's in-app twin.
+  let wrap = null;
+  if (!games.some((g) => g.kickoff <= new Date().toISOString())) {
+    const slates = await slateList(db, league, slate.season);
+    const prev = slates.find((s) => s.key < slate.key); // newest first, so the first older key is the last slate
+    if (prev) {
+      const last = await loadSlate(db, league, slate.season, prev.key);
+      const text = wrapText(slateResults(last.games, last.entries, last.picks, { scoring: league.scoring }), user.id, last.names, league.entry_fee_cents, prev.label);
+      if (text) wrap = { key: prev.key, text };
+    }
+  }
+
   const payLink = league.venmo_handle && league.entry_fee_cents > 0
     ? venmoLink(league.venmo_handle, league.entry_fee_cents, `${league.name} ${slate.label}`)
     : null;
@@ -67,6 +83,12 @@ export default async function PicksPage({ params }) {
         {entry?.paid && <span className="pill pill-good">Entry paid</span>}
         {entry && !entry.paid && !payLink && <span className="pill pill-warn">{money(league.entry_fee_cents)} due to the commissioner</span>}
       </div>
+
+      {wrap && (
+        <Dismissable id={`wrap-${league.id}-${wrap.key}`} className="mb-4 rounded-lg border border-line bg-surface2/70 px-3 py-2 text-sm text-ink2">
+          {wrap.text} <Link href={`/l/${league.id}/board?slate=${encodeURIComponent(wrap.key)}`} className="font-semibold underline">Board</Link>
+        </Dismissable>
+      )}
 
       {survivorNote && (
         <Link href={`/l/${league.id}/survivor`} className="mb-4 flex items-center gap-2 rounded-lg border border-warn/40 bg-warnsoft px-3 py-2 text-sm text-warn hover:brightness-95">

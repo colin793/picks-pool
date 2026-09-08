@@ -5,6 +5,7 @@ import { contrastText, outcome, ahead as aheadOf } from '../../lib/stats';
 import { useFlash } from './Flash';
 import { rankedAbbr } from '../../lib/featured';
 import { lineText, weatherText, consensusText, favored } from '../../lib/line';
+import { isUpset } from '../../lib/moments';
 
 // One matchup. `pick` is 'HOME' | 'AWAY' | undefined; `onPick(side)` when open.
 // `consensus` is { HOME, AWAY, TIE, total } for a locked game (everyone's
@@ -87,6 +88,7 @@ export default function GameCard({ game: g, pick, onPick, now, draws = false, ho
   const ballAbbr = g.possession === 'HOME' ? g.home_abbr : g.possession === 'AWAY' ? g.away_abbr : '';
   const split = locked ? consensusText(g, consensus, pick, homeFirst) : null;
   const extras = [];
+  if (isUpset(g)) extras.push({ key: 'upset', node: <span className="pill pill-warn" title={`The line was ${line}`}>Upset{pick && pick === g.winner ? ' · you called it' : ''}</span> });
   if (live && (ballAbbr || g.down_distance)) extras.push({ key: 'sit', node: <span className="font-semibold text-ink2">{ballAbbr && `${ballAbbr} ball`}{ballAbbr && g.down_distance ? ' · ' : ''}{g.down_distance}</span> });
   if (live && g.red_zone) extras.push({ key: 'rz', node: <span className="pill pill-bad">Red zone</span> });
   if (!final && line && !spread) extras.push({ key: 'line', node: <span>{line}{g.over_under != null ? ` · O/U ${g.over_under}` : ''}</span> });

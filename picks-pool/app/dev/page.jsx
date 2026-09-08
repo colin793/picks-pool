@@ -58,9 +58,35 @@ export default function Preview({ searchParams }) {
         <Link href="/dev?view=spread" className="underline">spread</Link>
         <Link href="/dev?view=chat" className="underline">chat</Link>
         <Link href="/dev?view=survivor" className="underline">survivor</Link>
+        <Link href="/dev?view=moments" className="underline">moments</Link>
+        <Link href="/dev?view=moments&won=1" className="underline">won</Link>
         {['picks', 'board'].includes(view) && <DevBump />}
       </div>
-      {view === 'survivor' ? (
+      {view === 'moments' ? (
+        // The board with everything but Monday night final and the top tied: the finale line,
+        // the rivalry line, an upset chip. ?won=1 finishes Monday night with Colin winning: confetti.
+        (() => {
+          const won = Boolean(searchParams?.won);
+          const mg = GAMES.map((g) => {
+            if (g.id === 'l1') return { ...g, state: 'post', status_detail: 'Final', home_score: 14, away_score: 27, winner: 'AWAY', home_spread: -3.5 }; // CHI favored by 3.5, GB won: an upset
+            if (g.id === 'l2') return { ...g, state: 'post', status_detail: 'Final', home_score: 24, away_score: 21, winner: 'HOME' };
+            if (g.id === 'l3') return { ...g, state: 'post', status_detail: 'Final', home_score: 20, away_score: 23, winner: 'AWAY' };
+            if (g.id === 'l4') return { ...g, state: 'post', status_detail: 'Final', home_score: 31, away_score: 13, winner: 'HOME' };
+            if (g.id === 'o1') return { ...g, state: 'post', status_detail: 'Final', home_score: 27, away_score: 20, winner: 'HOME' };
+            if (g.id === 'o2') return { ...g, state: 'post', status_detail: 'Final', home_score: 17, away_score: 24, winner: 'AWAY' };
+            if (g.id === 'o3') return won ? { ...g, state: 'post', status_detail: 'Final', home_score: 24, away_score: 20, winner: 'HOME' } : { ...g, state: 'in', status_detail: 'Q3 8:14', home_score: 17, away_score: 13 };
+            return g;
+          });
+          const mnow = Date.parse('2026-09-15T02:00:00Z');
+          // Sam flips to TB on Sunday night, so Colin and Sam sit tied at 9 with the finale to play: the finale line.
+          const mpicks = visiblePicks(me, mnow).map((p) => (p.entry_id === 'e-u-sam' && p.game_id === 'o2' ? { ...p, picked: 'AWAY' } : p));
+          const mentries = ENTRIES.map((e) => (e.user_id === 'u-jess' ? { ...e, tiebreaker: 51 } : e)); // Colin 44 vs Jess 51, revealed at kickoff
+          return (
+            <BoardView league={LEAGUE} sport={sport} label={slate.label} isCurrent slates={[{ key: slate.key, label: 'Demo Week' }]}
+              slateKey={slate.key} games={mg} entries={mentries} picks={mpicks} names={NAMES} me={me} now={mnow} shareUrl="/dev/share" />
+          );
+        })()
+      ) : view === 'survivor' ? (
         // ?as=u-jess views the pool as another player (her pick is Monday night, still open).
         <SurvivorView league={{ ...LEAGUE, survivor: true, survivor_fee_cents: 2000 }} sport={sport} slate={slate} me={NAMES.has(searchParams?.as) ? searchParams.as : me} now={NOW} fixedNow={NOW} demo base="/dev"
           games={[...SURVIVOR_PREV, ...games]} entries={SURVIVOR_ENTRIES} picks={visibleSurvivorPicks(NAMES.has(searchParams?.as) ? searchParams.as : me, NOW)} names={NAMES} />

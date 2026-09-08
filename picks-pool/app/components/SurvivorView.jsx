@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { survivorStandings, entriesOpen, outText, survivorPot } from '../../lib/survivor';
 import { money } from '../../lib/stats';
 import SurvivorPicker from './SurvivorPicker';
+import { sweatText } from '../../lib/moments';
+import { Confetti } from './Pops';
 
 const RESULT_STYLE = {
   won: 'bg-goodsoft text-good ring-1 ring-good/40',
@@ -25,9 +27,12 @@ export default function SurvivorView({ league, sport, slate, games, entries, pic
   const canPick = (entered && mine.status === 'alive') || (!entered && open);
   const short = (label) => String(label).replace(/^Week /, 'Wk ');
   const name = (id) => names.get(id)?.display_name ?? 'Player';
+  const sweat = mine?.status === 'alive' ? sweatText(myPick) : null;
+  const iWon = complete && winners.some((w) => w.user_id === me);
 
   return (
     <>
+      {iWon && !demo && <Confetti id={`survivor-${league.id}-${slate.season}`} />}
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="eyebrow">{sport.name} · {entries.length ? `${alive} of ${entries.length} still alive` : 'nobody in yet'}{pot ? ` · ${money(pot)} pot` : ''}</p>
@@ -37,6 +42,13 @@ export default function SurvivorView({ league, sport, slate, games, entries, pic
           ? <span className="pill pill-good">Alive{mine.survived ? ` · ${mine.survived} straight` : ''}</span>
           : <span className="pill pill-bad">{outText(mine)}</span>)}
       </div>
+
+      {sweat && (
+        <div className={`mb-4 flex items-center gap-3 rounded-xl border px-4 py-3 ${sweat.tone === 'down' ? 'sweat-down border-bad/50 bg-badsoft' : sweat.tone === 'up' ? 'border-good/40 bg-goodsoft' : 'border-line bg-surface2'}`}>
+          <span className="pill pill-warn">Live</span>
+          <span className={`font-display text-lg font-bold leading-tight ${sweat.tone === 'down' ? 'text-bad' : sweat.tone === 'up' ? 'text-good' : 'text-ink'}`}>{sweat.text}</span>
+        </div>
+      )}
 
       {complete && (
         <section className="card mb-4 border-good/40">
