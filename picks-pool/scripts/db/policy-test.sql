@@ -463,6 +463,127 @@ do $$ declare n int; ok boolean; begin
   perform pg_temp.as_admin();
 end $$;
 
+-- Survivor: the pool switch, entries, picks, the never-twice rule, visibility,
+-- and the entry window. (The college league: alice is in it, bob is not yet.
+-- Its curated slate after the swaps above is c-in-1 and c-started.)
+insert into games (id, sport, season, season_type, slate_key, slate_label, kickoff, home_abbr, home_name, away_abbr, away_name) values
+  ('c-wk3', 'cfb', 2026, 2, '2026-2-03', 'Week 3', now() + interval '8 days', 'UGA', 'Bulldogs', 'LSU', 'Tigers');
+do $$ declare n int; ok boolean; t text; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  begin
+    insert into survivor_entries (league_id, user_id, season) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 2026); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('no survivor entry while the pool is off', ok);
+  perform pg_temp.as_admin();
+  update leagues set survivor = true where id = '10000000-0000-0000-0000-000000000007';
+
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  begin
+    insert into survivor_entries (league_id, user_id, season) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 2026); ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('a member can enter the survivor pool', ok);
+  begin
+    insert into survivor_entries (league_id, user_id, season) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000001', 2026); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('nobody can enter someone else', ok);
+  begin
+    insert into survivor_picks (league_id, user_id, season, slate_key, game_id, picked, team) values
+      ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 2026, '2026-2-02', 'c-in-1', 'HOME', 'FAKE'); ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('alice can pick a featured game that has not started', ok);
+  select team into t from survivor_picks where user_id = '00000000-0000-0000-0000-000000000002' and slate_key = '2026-2-02';
+  perform pg_temp.check('the team comes from the game, not the client', t = 'UGA');
+  begin
+    update survivor_picks set game_id = 'c-out' where user_id = '00000000-0000-0000-0000-000000000002' and slate_key = '2026-2-02'; ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a survivor pick outside the curated slate is refused', ok);
+  begin
+    update survivor_picks set game_id = 'c-started' where user_id = '00000000-0000-0000-0000-000000000002' and slate_key = '2026-2-02'; ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a survivor pick on a started game is refused', ok);
+  begin
+    insert into survivor_picks (league_id, user_id, season, slate_key, game_id, picked) values
+      ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 2026, '2026-2-03', 'c-wk3', 'HOME'); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('the same team cannot be used twice in a season', ok);
+  begin
+    insert into survivor_picks (league_id, user_id, season, slate_key, game_id, picked) values
+      ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000002', 2026, '2026-2-03', 'c-wk3', 'AWAY'); ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('the other side of that game is fine', ok);
+  update survivor_picks set picked = 'AWAY' where user_id = '00000000-0000-0000-0000-000000000002' and slate_key = '2026-2-02';
+  get diagnostics n = row_count;
+  perform pg_temp.check('an open survivor pick can be changed', n = 1);
+  select team into t from survivor_picks where user_id = '00000000-0000-0000-0000-000000000002' and slate_key = '2026-2-02';
+  perform pg_temp.check('...and the team follows', t = 'CLEM');
+
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000003'); -- bob, not a member
+  begin
+    insert into survivor_entries (league_id, user_id, season) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000003', 2026); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('a non-member cannot enter the pool', ok);
+  select count(*) into n from survivor_entries; perform pg_temp.check('a non-member sees no survivor entries', n = 0);
+
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- commissioner
+  select count(*) into n from survivor_picks where user_id = '00000000-0000-0000-0000-000000000002';
+  perform pg_temp.check('another member cannot see a pick before its game kicks off', n = 0);
+  update survivor_entries set paid = true where user_id = '00000000-0000-0000-0000-000000000002';
+  get diagnostics n = row_count;
+  perform pg_temp.check('the commissioner can mark a survivor buy-in paid', n = 1);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  update survivor_entries set paid = false where user_id = '00000000-0000-0000-0000-000000000002';
+  get diagnostics n = row_count;
+  perform pg_temp.check('a player cannot touch their own buy-in flag', n = 0);
+  perform pg_temp.as_admin();
+end $$;
+
+-- Survivor: a kicked-off pick is visible to the league and frozen; entries
+-- close once the pool's first slate has locked.
+insert into memberships (league_id, user_id) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000003'); -- bob joins
+insert into survivor_entries (league_id, user_id, season) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000001', 2026);
+insert into survivor_picks (league_id, user_id, season, slate_key, game_id, picked) values
+  ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000001', 2026, '2026-2-02', 'c-started', 'HOME'); -- the commissioner took LSU, kicked off an hour ago
+do $$ declare n int; ok boolean; begin
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice
+  select count(*) into n from survivor_picks where user_id = '00000000-0000-0000-0000-000000000001';
+  perform pg_temp.check('a member sees a pick once its game has kicked off', n = 1);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- commissioner
+  update survivor_picks set game_id = 'c-in-1', picked = 'HOME' where user_id = '00000000-0000-0000-0000-000000000001' and slate_key = '2026-2-02';
+  get diagnostics n = row_count;
+  perform pg_temp.check('a kicked-off survivor pick cannot be changed', n = 0);
+  delete from survivor_picks where user_id = '00000000-0000-0000-0000-000000000001' and slate_key = '2026-2-02';
+  get diagnostics n = row_count;
+  perform pg_temp.check('...or cleared', n = 0);
+
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000003'); -- bob, now a member, first slate still open (c-in-1 is tomorrow)
+  begin
+    insert into survivor_entries (league_id, user_id, season) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000003', 2026); ok := true;
+  exception when others then ok := false; end;
+  perform pg_temp.check('entries stay open until the first slate locks', ok);
+  delete from survivor_entries where user_id = '00000000-0000-0000-0000-000000000003';
+  get diagnostics n = row_count;
+  perform pg_temp.check('a player can leave while entries are open', n = 1);
+
+  perform pg_temp.as_admin();
+  update games set kickoff = now() - interval '1 minute' where id = 'c-in-1'; -- the first slate's last game kicks off
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000003'); -- bob
+  begin
+    insert into survivor_entries (league_id, user_id, season) values ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000003', 2026); ok := false;
+  exception when others then ok := true; end;
+  perform pg_temp.check('entries close once the first slate has locked', ok);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000002'); -- alice tries to bail after the lock
+  delete from survivor_entries where user_id = '00000000-0000-0000-0000-000000000002';
+  get diagnostics n = row_count;
+  perform pg_temp.check('nobody leaves after the lock', n = 0);
+  perform pg_temp.as_user('00000000-0000-0000-0000-000000000001'); -- commissioner
+  delete from survivor_entries where user_id = '00000000-0000-0000-0000-000000000002';
+  get diagnostics n = row_count;
+  perform pg_temp.check('the commissioner can remove a survivor entry', n = 1);
+  perform pg_temp.as_admin();
+  select count(*) into n from survivor_picks where user_id = '00000000-0000-0000-0000-000000000002';
+  perform pg_temp.check('...and its picks go with it', n = 0);
+end $$;
+
 -- ---------- summary ----------
 do $$ declare total int; declare failed int; begin
   -- `ok is not true` so a NULL (a comparison against a missing row) counts as a failure.

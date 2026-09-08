@@ -71,8 +71,28 @@ export async function loadSlate(db, league, season, slateKey) {
 // A database that has not had the featured-slates migration yet has no
 // slate_games table. That is "nothing curated", not a crash: the app must
 // keep working whichever order the code deploy and the SQL paste happen in.
-function missingTable(error) {
-  return error && (error.code === 'PGRST205' || error.code === '42P01' || /slate_games.*(not exist|not find|schema cache)/i.test(error.message ?? ''));
+export function missingTable(error, table = 'slate_games') {
+  return error && (error.code === 'PGRST205' || error.code === '42P01' || new RegExp(`${table}.*(not exist|not find|schema cache)`, 'i').test(error.message ?? ''));
+}
+
+// Everything the survivor pool needs for one season: the league's games
+// (curated slates applied), every seat, every pick the viewer may see. A
+// database without the survivor tables yet reports `missing` instead of throwing.
+export async function loadSurvivor(db, league, season) {
+  const [{ data: entries, error }, { data: picks }, board, rows, { data: members }] = await Promise.all([
+    db.from('survivor_entries').select('*').eq('league_id', league.id).eq('season', season).order('created_at'),
+    db.from('survivor_picks').select('*').eq('league_id', league.id).eq('season', season).order('slate_key'),
+    fetchAll(() => db.from('games').select('*').eq('sport', league.sport).eq('season', season).order('kickoff').order('id')),
+    featuredRows(db, league, season),
+    db.from('memberships').select('user_id, profiles(id, display_name, emoji, venmo_handle)').eq('league_id', league.id),
+  ]);
+  if (error) {
+    if (!missingTable(error, 'survivor_entries')) throw new Error(error.message);
+    console.warn('survivor tables missing: run supabase/migrations/2026-09-08-survivor.sql');
+    return { missing: true, games: [], entries: [], picks: [], names: new Map() };
+  }
+  const names = new Map((members ?? []).map((m) => [m.user_id, m.profiles]));
+  return { missing: false, games: applyFeatured(board, rows), entries: entries ?? [], picks: picks ?? [], names };
 }
 
 // Every curated-slate row for a league's season (empty for sports that play

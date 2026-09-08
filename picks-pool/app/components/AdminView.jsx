@@ -1,8 +1,9 @@
 import { money, venmoLink } from '../../lib/stats';
 import {
   updateLeague, setPaid, recordPayout, undoPayout, regenerateInvite,
-  transferLeague, deleteLeague, removeMember, setFeatured, resetFeatured, syncNow,
+  transferLeague, deleteLeague, removeMember, setFeatured, resetFeatured, syncNow, setSurvivorPaid, withdrawSurvivor,
 } from '../../lib/actions';
+import { outText } from '../../lib/survivor';
 import { rankedAbbr } from '../../lib/featured';
 import CopyButton from './CopyButton';
 import ConfirmForm from './ConfirmForm';
@@ -26,7 +27,9 @@ function SlateRow({ g, on, started, action }) {
 }
 
 // The Admin page body. The server page computes the money state; /dev feeds fixtures.
-export default function AdminView({ user, league, sport, members, names, inviteUrl, now, feeRows, owed, paidOut, slate = null, clock = Date.now(), hasEntries = false, lastSync = null }) {
+// survivor: { season, rows, pot, share, complete, winners, paid } when the pool is on; null otherwise.
+export default function AdminView({ user, league, sport, members, names, inviteUrl, now, feeRows, owed, paidOut, slate = null, clock = Date.now(), hasEntries = false, lastSync = null, survivor = null }) {
+  const survivorReady = 'survivor' in league; // the column exists once the survivor SQL has run
   const inSlate = new Set((slate?.games ?? []).map((g) => g.id));
   const available = (slate?.board ?? []).filter((g) => !inSlate.has(g.id) && new Date(g.kickoff).getTime() > clock);
   return (
@@ -107,6 +110,47 @@ export default function AdminView({ user, league, sport, members, names, inviteU
           </section>
         ))}
 
+        {survivor?.complete && !survivor.paid && survivor.winners.length > 0 && (
+          <section className="card border-good/40">
+            <h2 className="h2 mb-1">Survivor payout</h2>
+            <p className="text-sm text-ink2 mb-3">Pot {money(survivor.pot)}{survivor.winners.length > 1 ? `, split ${survivor.winners.length} ways` : ''}. Nobody is left standing.</p>
+            {survivor.winners.map((w) => (
+              <div className="flex flex-wrap items-center gap-2 border-t border-line py-2" key={w.user_id}>
+                <span className="flex-1 font-semibold">{w.name} <span className="num text-good">{money(survivor.share)}</span></span>
+                {w.venmo
+                  ? <a className="btn btn-sm" href={venmoLink(w.venmo, survivor.share, `${league.name} survivor winnings`)}>Venmo {w.name}</a>
+                  : <span className="text-xs text-muted">No Venmo handle set</span>}
+                <form action={recordPayout.bind(null, league.id, survivor.season, 'survivor', w.user_id, survivor.share)}>
+                  <button className="btn btn-ghost btn-sm">Mark sent</button>
+                </form>
+              </div>
+            ))}
+          </section>
+        )}
+
+        {survivor && (
+          <section className="card">
+            <h2 className="h2 mb-1">Survivor buy-ins</h2>
+            <p className="mb-2 text-xs text-muted">{survivor.rows.length} in at {money(league.survivor_fee_cents)}, pot {money(survivor.pot)}. Once a season. Removing someone deletes their picks.</p>
+            {survivor.rows.length === 0 && <p className="text-sm text-muted">No seats taken yet. The first pick opens the pool.</p>}
+            {survivor.rows.map((e) => (
+              <div className="flex items-center gap-2 border-t border-line py-2" key={e.user_id}>
+                <span className="min-w-0 flex-1 truncate">
+                  {names.get(e.user_id)?.emoji} {names.get(e.user_id)?.display_name ?? 'Player'}
+                  <span className="block text-xs text-muted">{e.status === 'alive' ? 'Alive' : outText(e)}</span>
+                </span>
+                {e.paid ? <span className="pill pill-good">paid</span> : <span className="pill pill-bad">unpaid</span>}
+                <form action={setSurvivorPaid.bind(null, league.id, e.user_id, survivor.season, !e.paid)}>
+                  <button className="btn btn-ghost btn-sm">{e.paid ? 'Mark unpaid' : 'Mark paid'}</button>
+                </form>
+                <form action={withdrawSurvivor.bind(null, league.id, survivor.season, e.user_id)}>
+                  <button className="text-xs text-muted hover:text-bad">remove</button>
+                </form>
+              </div>
+            ))}
+          </section>
+        )}
+
         <section className="card">
           <h2 className="h2 mb-1">{now?.label ?? 'This slate'} entry fees</h2>
           <p className="mb-2 text-xs text-muted">Check your Venmo, tick people off. The unpaid badge on the board does the nagging.</p>
@@ -171,6 +215,16 @@ export default function AdminView({ user, league, sport, members, names, inviteU
             <option value="spread">Against the spread: pick who covers the line at kickoff</option>
           </select>
           <p className="mt-1 text-xs text-muted">{hasEntries ? 'Locked: the league already has entries. It is set for the season.' : 'Fixed once anyone enters. A push scores for nobody; a game with no line is scored straight up.'}</p>
+          {survivorReady ? (
+            <>
+              <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" name="survivor" defaultChecked={Boolean(league.survivor)} /> Run a survivor pool beside the pick&rsquo;em</label>
+              <label className="label">Survivor buy-in (dollars, once per season)</label>
+              <input className="input" type="number" name="survivor_fee" step="0.25" min="0" defaultValue={((league.survivor_fee_cents ?? 0) / 100).toFixed(2)} />
+              <p className="mt-1 text-xs text-muted">One team a {sport.mode === 'week' ? 'week' : 'slate'}, never twice, one loss and out. Entries close when the pool&rsquo;s first {sport.mode === 'week' ? 'week' : 'slate'} locks. Switching it off hides the tab; nothing is deleted.</p>
+            </>
+          ) : (
+            <p className="mt-3 text-xs text-muted">Survivor pool: run <code>supabase/migrations/2026-09-08-survivor.sql</code> in the Supabase SQL Editor to unlock it here.</p>
+          )}
           <label className="label">Your Venmo handle (entry fees go here)</label>
           <input className="input" type="text" name="venmo" defaultValue={league.venmo_handle} placeholder="@your-venmo" />
           <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" name="recap" defaultChecked={league.recap_enabled} /> Send the results recap email</label>

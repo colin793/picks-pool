@@ -33,7 +33,7 @@ export default function LeagueShell({ league, sport, slate, profile, isCommish, 
       <aside className="hidden border-r border-white/5 bg-brand px-4 py-5 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
         {brand}
         <div className="mt-6 flex-1">
-          <SidebarNav base={base} isCommish={isCommish} slateLabel={slate?.label} />
+          <SidebarNav base={base} isCommish={isCommish} slateLabel={slate?.label} survivor={Boolean(league.survivor)} />
         </div>
         <div className="space-y-1 border-t border-white/10 pt-4">
           <Link href="/" className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-white/70 hover:bg-white/5 hover:text-white">
@@ -59,7 +59,7 @@ export default function LeagueShell({ league, sport, slate, profile, isCommish, 
         <PushPrompt publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY} demo={demo} />
         {children}
       </main>
-      <TabBar base={base} isCommish={isCommish} />
+      <TabBar base={base} isCommish={isCommish} survivor={Boolean(league.survivor)} />
     </div>
   );
 }

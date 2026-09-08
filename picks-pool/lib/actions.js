@@ -57,6 +57,12 @@ export async function updateLeague(leagueId, formData) {
       reminders_enabled: formData.get('reminders') === 'on',
       // A disabled select posts nothing; leave scoring alone then. The database refuses a change once entries exist.
       ...(formData.get('scoring') ? { scoring: ['straight', 'spread'].includes(formData.get('scoring')) ? formData.get('scoring') : 'straight' } : {}),
+      // The survivor fields only post once the survivor SQL has run (the form
+      // hides them until the columns exist), so an older database is never written to.
+      ...(formData.has('survivor_fee') ? {
+        survivor: formData.get('survivor') === 'on',
+        survivor_fee_cents: Math.max(0, Math.round(Number(formData.get('survivor_fee') || 0) * 100)),
+      } : {}),
     })
     .eq('id', leagueId); // RLS: commissioner only
   if (error) throw new Error(error.message);
@@ -269,6 +275,61 @@ export async function syncNow(leagueId) {
   if (!league || !user || league.commissioner !== user.id) return;
   const { syncSport } = await import('./scores/sync.js');
   await syncSport(league.sport, true);
+  revalidatePath(`/l/${leagueId}`, 'layout');
+}
+
+// ---------- survivor ----------
+
+// One team for this slate. The first pick also takes the seat (a
+// survivor_entries row). The database is the referee: entries open only
+// until the pool's first slate locks, a pick must be on an unstarted game
+// in this league's slate, and a team used earlier in the season is refused
+// by the unique key. This turns those refusals into plain English.
+export async function saveSurvivorPick(leagueId, season, slateKey, gameId, side) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  if (side !== 'HOME' && side !== 'AWAY') throw new Error('Pick a side.');
+  const db = sb();
+  const seat = { league_id: leagueId, user_id: user.id, season };
+  const { data: entry } = await db.from('survivor_entries').select('user_id').match(seat).maybeSingle();
+  if (!entry) {
+    const { error } = await db.from('survivor_entries').insert(seat); // RLS: member, pool on, entries open
+    if (error) throw new Error(/row-level security/i.test(error.message) ? 'Entries are closed: the pool\u2019s first week has already locked.' : error.message);
+  }
+  const { error } = await db.from('survivor_picks')
+    .upsert({ ...seat, slate_key: slateKey, game_id: gameId, picked: side }, { onConflict: 'league_id,user_id,season,slate_key' }); // RLS: own, open game, in slate
+  if (error) {
+    if (/survivor_picks_league_id_user_id_season_team_key|duplicate key/i.test(error.message)) throw new Error('You already used that team this season.');
+    if (/row-level security/i.test(error.message)) throw new Error('That game has kicked off, or your pick for this week is locked.');
+    throw new Error(error.message);
+  }
+  revalidatePath(`/l/${leagueId}`, 'layout');
+  return { ok: true };
+}
+
+export async function clearSurvivorPick(leagueId, season, slateKey) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  const { data, error } = await sb().from('survivor_picks').delete()
+    .match({ league_id: leagueId, user_id: user.id, season, slate_key: slateKey }).select('game_id'); // RLS: own, game not started
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error('That pick is locked: its game has kicked off.');
+  revalidatePath(`/l/${leagueId}`, 'layout');
+}
+
+// Leave the pool. RLS: only while entries are open, or as the commissioner.
+export async function withdrawSurvivor(leagueId, season, userId = null) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  const { data, error } = await sb().from('survivor_entries').delete()
+    .match({ league_id: leagueId, user_id: userId ?? user.id, season }).select('user_id');
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error('Entries have locked; ask the commissioner.');
+  revalidatePath(`/l/${leagueId}`, 'layout');
+}
+
+export async function setSurvivorPaid(leagueId, userId, season, paid) {
+  await sb().from('survivor_entries').update({ paid }).match({ league_id: leagueId, user_id: userId, season }); // RLS: commissioner
   revalidatePath(`/l/${leagueId}`, 'layout');
 }
 

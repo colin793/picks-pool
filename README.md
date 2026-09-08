@@ -116,6 +116,10 @@ Before kickoff: the line as ESPN carries it ("KC -3.5 · O/U 47.5") and the weat
 ### Chat
 
 A members-only room per league, on its own tab. It refreshes itself every fifteen seconds, you can delete your own messages, and the commissioner can delete anyone's. No notifications for chat, on purpose: the two push alerts stay rare.
+### Survivor
+
+A second game on the same slate, switched on per league in Admin: pick one team a week to win outright, never the same team twice, lose (or tie, or forget) and you are out. Its own buy-in, once a season, with the pot going to the last one standing; if the last few fall in the same week they split it. Straight up whatever the pick'em scores by. The first pick anyone makes opens the pool, and entries close when that week's last game kicks off, so nobody sneaks in with fewer weeks to survive. Picks stay hidden until their game starts, same as the pick'em. The Survivor tab shows your seat, the teams you have burned, and everyone's road; the Picks tab nudges you when you have no team yet. The rules live in `lib/survivor.js` with their own self-check, and the database enforces every one of them (`survivor_entries`, `survivor_picks`).
+
 ### Reactions
 
 Tap any revealed pick on the grid to drop a 🔥 💀 🤡 or 👏 on it. One per person per pick; tap again to take it back. Only once the game has kicked off, because before that the pick is not visible. The invite link also gets a proper preview card in a text thread.
@@ -179,6 +183,10 @@ v2 changes the schema (weeks became slates, games gained a sport and logos). The
 ## Upgrading from v2.4 to v2.5 (chat)
 
 Paste `picks-pool/supabase/migrations/2026-09-06-chat.sql` into the Supabase SQL Editor and Run.
+## Upgrading from v2.6 to v2.7 (survivor)
+
+Paste `picks-pool/supabase/migrations/2026-09-08-survivor.sql` into the Supabase SQL Editor and Run, then switch the pool on in the league's Admin tab. Until the SQL has run, the Admin form says so and nothing else changes.
+
 ## Upgrading from v2.5 to v2.6 (reactions)
 
 Paste `picks-pool/supabase/migrations/2026-09-06-reactions.sql` into the Supabase SQL Editor and Run.

@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
-import { leagueContext, currentSlate, loadSeason, loadSlate } from '../../../../lib/league';
+import { leagueContext, currentSlate, loadSeason, loadSlate, loadSurvivor } from '../../../../lib/league';
 import { appUrl } from '../../../../lib/supabase';
 import { slateResults, potFor } from '../../../../lib/stats';
+import { survivorStandings, survivorPot } from '../../../../lib/survivor';
 import AdminView from '../../../components/AdminView';
 
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,20 @@ export default async function Admin({ params }) {
     slate = { games, board, curated, season: now.season, key: now.key };
   }
 
+  // The survivor pool: seats, buy-ins, and the prize once nobody is left.
+  let survivor = null;
+  if (now && league.survivor) {
+    const data = await loadSurvivor(db, league, now.season);
+    if (!data.missing) {
+      const { rows, complete, winners } = survivorStandings(data.games, data.entries, data.picks);
+      const { pot, share } = survivorPot(data.entries, league.survivor_fee_cents, winners);
+      survivor = {
+        season: now.season, rows, pot, share, complete,
+        winners: winners.map((w) => ({ user_id: w.user_id, name: names.get(w.user_id)?.display_name ?? 'Player', venmo: names.get(w.user_id)?.venmo_handle ?? '' })),
+      };
+    }
+  }
+
   // Current-slate fee list, plus any completed slate still owed a payout.
   let feeRows = [], owed = [], paidOut = [], hasEntries = false;
   if (now) {
@@ -34,8 +49,9 @@ export default async function Admin({ params }) {
     feeRows = (allEntries ?? []).filter((e) => e.slate_key === now.key);
     hasEntries = (allEntries ?? []).length > 0;
     const labels = new Map((allGames ?? []).map((g) => [g.slate_key, g.slate_label]));
-    paidOut = (payouts ?? []).map((p) => ({ ...p, label: labels.get(p.slate_key) }));
+    paidOut = (payouts ?? []).map((p) => ({ ...p, label: p.slate_key === 'survivor' ? 'Survivor' : labels.get(p.slate_key) }));
     const paidSlates = new Set(paidOut.map((p) => p.slate_key));
+    if (survivor) survivor.paid = paidSlates.has('survivor');
     for (const key of [...new Set((allEntries ?? []).map((e) => e.slate_key))].sort()) {
       if (paidSlates.has(key)) continue;
       const games = (allGames ?? []).filter((g) => g.slate_key === key);
@@ -54,6 +70,6 @@ export default async function Admin({ params }) {
 
   return (
     <AdminView user={user} league={league} sport={sport} members={members ?? []} names={names}
-      inviteUrl={inviteUrl} now={now} feeRows={feeRows} owed={owed} paidOut={paidOut} slate={slate} hasEntries={hasEntries} lastSync={state?.last_sync ?? null} />
+      inviteUrl={inviteUrl} now={now} feeRows={feeRows} owed={owed} paidOut={paidOut} slate={slate} hasEntries={hasEntries} lastSync={state?.last_sync ?? null} survivor={survivor} />
   );
 }
