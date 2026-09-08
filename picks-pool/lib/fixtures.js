@@ -2,9 +2,9 @@
 // A 14-game NFL slate frozen mid-Sunday: Thursday is final, the early window
 // is final, the late window is live, Sunday night and Monday are still open.
 
-const T = (n) => ({ abbr: n[0], name: n[1], logo: `https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${n[0].toLowerCase()}.png`, color: n[2] });
+const T = (n) => ({ abbr: n[0], name: n[1], logo: `https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${n[0].toLowerCase()}.png`, color: n[2], alt: n[3] ?? '' });
 const teams = {
-  NE: T(['NE', 'Patriots', '#002a5c']), SEA: T(['SEA', 'Seahawks', '#002a5c']),
+  NE: T(['NE', 'Patriots', '#002a5c', '#c60c30']), SEA: T(['SEA', 'Seahawks', '#002a5c', '#69be28']),
   DAL: T(['DAL', 'Cowboys', '#002a5c']), PHI: T(['PHI', 'Eagles', '#06424d']),
   KC: T(['KC', 'Chiefs', '#e31837']), BUF: T(['BUF', 'Bills', '#00338d']),
   GB: T(['GB', 'Packers', '#204e32']), CHI: T(['CHI', 'Bears', '#0b162a']),
@@ -41,8 +41,8 @@ function game(id, away, home, slot, opts = {}) {
   return {
     id, sport: 'nfl', season: 2026, season_type: 2, slate_key: '2026-2-00', slate_label: 'Demo Week',
     kickoff,
-    home_abbr: h.abbr, home_name: h.name, home_logo: h.logo, home_color: h.color,
-    away_abbr: a.abbr, away_name: a.name, away_logo: a.logo, away_color: a.color,
+    home_abbr: h.abbr, home_name: h.name, home_logo: h.logo, home_color: h.color, home_alt_color: h.alt,
+    away_abbr: a.abbr, away_name: a.name, away_logo: a.logo, away_color: a.color, away_alt_color: a.alt,
     home_score: hs, away_score: as, state,
     status_detail: state === 'post' ? (opts.ot ? 'Final/OT' : 'Final') : state === 'in' ? (opts.clock ?? 'Q3 8:14') : '',
     winner: state === 'post' ? (hs > as ? 'HOME' : as > hs ? 'AWAY' : 'TIE') : null,

@@ -114,7 +114,9 @@ create table public.games (
   temperature int,                       -- Fahrenheit
   broadcast text not null default '',    -- "CBS", "Prime Video": where to watch
   home_record text not null default '',  -- "2-0" coming in
-  away_record text not null default ''
+  away_record text not null default '',
+  home_alt_color text not null default '', -- the team's second color, for when two primaries clash
+  away_alt_color text not null default ''
 );
 create index games_slate_idx on public.games (sport, season, slate_key);
 

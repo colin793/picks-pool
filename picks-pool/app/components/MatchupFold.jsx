@@ -27,10 +27,16 @@ export default function MatchupFold({ game: g, take = { home: [], away: [] }, ho
   const sides = homeFirst ? ['home', 'away'] : ['away', 'home'];
   const abbr = (s) => (s === 'home' ? g.home_abbr : g.away_abbr);
   const color = (s) => (s === 'home' ? g.home_color : g.away_color) || 'rgb(var(--c1-rgb))';
-  // Two navies make one bar. Then the second side wears a clear tint of its
-  // color (navy becomes steel blue), and both labels get a swatch.
+  // Two navies make one bar. Then the second side wears its second color
+  // when ESPN sent one that stands apart (Seahawks green), else a clear tint
+  // of its primary (navy becomes steel blue), and both labels get a swatch.
   const twins = clash(g.home_color, g.away_color);
-  const fill = (s, second) => ({ background: second && twins ? tint(s === 'home' ? g.home_color : g.away_color) : color(s) });
+  const other = (s) => {
+    const alt = s === 'home' ? g.home_alt_color : g.away_alt_color;
+    const first = s === 'home' ? g.away_color : g.home_color;
+    return alt && !clash(alt, first) ? alt : tint(s === 'home' ? g.home_color : g.away_color);
+  };
+  const fill = (s, second) => ({ background: second && twins ? other(s) : color(s) });
   const rec = (s) => (s === 'home' ? g.home_record : g.away_record);
   const records = (rec('home') || rec('away')) && !(rec('home') === '0-0' && rec('away') === '0-0');
   const has = (key) => notes && sides.some((s) => notes[key]?.[s]?.length);

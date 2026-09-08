@@ -43,8 +43,11 @@ export default function LeagueShell({ league, sport, slate, profile, isCommish, 
             <Icon.home /> My leagues
           </Link>
           <div className="flex items-center gap-3 px-3 py-2 text-sm text-white/70">
-            <span className="text-lg">{profile?.emoji}</span>
-            <span className="flex-1 truncate">{profile?.display_name}</span>
+            <Link href="/settings" className="flex min-w-0 flex-1 items-center gap-3 rounded-md hover:text-white" title="Your settings: name, emoji, Venmo, notifications, look">
+              <span className="text-lg">{profile?.emoji}</span>
+              <span className="min-w-0 flex-1 truncate">{profile?.display_name}</span>
+              <Icon.admin className="shrink-0 opacity-70" />
+            </Link>
             <form action={signOutAction}><button className="text-xs text-white/50 hover:text-white">Sign out</button></form>
           </div>
         </div>
@@ -54,6 +57,7 @@ export default function LeagueShell({ league, sport, slate, profile, isCommish, 
         <div className="mx-auto flex max-w-2xl items-center gap-3">
           <div className="min-w-0 flex-1">{brand}</div>
           <Link href={`${base}/help`} className="rounded-md p-1.5 text-white/70 hover:bg-white/10" aria-label="How to play"><Icon.help /></Link>
+          <Link href="/settings" className="rounded-md p-1.5 text-white/70 hover:bg-white/10" aria-label="Your settings"><Icon.admin /></Link>
           <Link href="/" className="rounded-md p-1.5 text-white/70 hover:bg-white/10" aria-label="My leagues"><Icon.home /></Link>
         </div>
       </header>

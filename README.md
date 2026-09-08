@@ -215,6 +215,10 @@ v2 changes the schema (weeks became slates, games gained a sport and logos). The
 ## Upgrading from v2.4 to v2.5 (chat)
 
 Paste `picks-pool/supabase/migrations/2026-09-06-chat.sql` into the Supabase SQL Editor and Run.
+## Upgrading from v2.9 to v2.9.1 (team secondary colors)
+
+Paste `picks-pool/supabase/migrations/2026-09-11-alt-colors.sql` into the Supabase SQL Editor and Run. The next score sync fills the colors in; until then the projection bar tints as before.
+
 ## Upgrading from v2.8 to v2.9 (Boot of the Week, the weekly draft, light and dark)
 
 Paste `picks-pool/supabase/migrations/2026-09-10-draft.sql` into the Supabase SQL Editor and Run. Both new modes stay off until the commissioner switches them on in Admin. The theme switch needs no SQL.
