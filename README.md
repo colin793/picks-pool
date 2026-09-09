@@ -116,6 +116,12 @@ Before kickoff: the line as ESPN carries it ("KC -3.5 · O/U 47.5") and the weat
 ### Chat
 
 A members-only room per league, on its own tab. It refreshes itself every fifteen seconds, you can delete your own messages, and the commissioner can delete anyone's. No notifications for chat, on purpose: the two push alerts stay rare.
+### The desk (desktop)
+
+On a laptop the app is three columns. A rail on the left that is yours, not the league's: every league you are in with a line on where you stand this week ("Wk 2 · 9-4 · 2nd") and a green dot while its games are on, a way into a new league, How to play, and you with the gear to Settings. The league in the middle, with its tabs across the top. Chat docked on the right on wide screens (1280px and up), polling every fifteen seconds, with a pin to close it that this device remembers; the Chat tab comes back when it is closed. The app opens on the league you were last in (a cookie the middleware sets); the phone's home icon still shows the full list. Phones keep the header and tab bar exactly as before. `app/components/Desk.jsx`, `Rail.jsx`, `TopTabs.jsx`, `ChatDock.jsx`.
+
+The Picks page is one grid in kickoff order rather than a section per day, so a lone Thursday game no longer sits on a row of its own; each card carries its own day and time, and once anything is open the finals fold into one line at the bottom.
+
 ### Where to watch, and About this matchup
 
 Each card shows the network under the kickoff and both records coming in, straight from the scoreboard feed. "About this matchup" folds open under the card: the room's take first (how often the room takes this team and its record doing so, your record backing and fading them, who rides them), then what ESPN's per-game summary says: last five, leaders, injuries, ESPN's projection, fetched the first time anyone opens it and cached in `game_notes` for a day, or for good once final. The room's take comes from picks you can already see, so nothing leaks. `lib/room.js` and `lib/scores/matchup.js`, both with self-checks.

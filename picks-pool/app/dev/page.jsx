@@ -50,7 +50,17 @@ export default function Preview({ searchParams }) {
   async function noop() { 'use server'; }
 
   return (
-    <LeagueShell league={{ ...LEAGUE, survivor: true, survivor_fee_cents: 2000 }} sport={sport} slate={slate} profile={NAMES.get(me)} isCommish base="/dev" signOutAction={noop} demo>
+    <LeagueShell league={{ ...LEAGUE, survivor: true, survivor_fee_cents: 2000 }} sport={sport} slate={slate} profile={NAMES.get(me)} isCommish base="/dev" signOutAction={noop} demo live
+      rail={[
+        { id: LEAGUE.id, name: LEAGUE.name, sport: 'nfl', logo_url: '', color1: LEAGUE.color1, line: 'Demo Week · 5-4 · 3rd', live: true },
+        { id: 'league-cfb', name: 'NCAA Football Picks', sport: 'cfb', logo_url: '', color1: '#b91c1c', line: 'Wk 3 · 9 picked', live: false },
+        { id: 'league-epl', name: 'Footy Friends', sport: 'epl', logo_url: '', color1: '#7c3aed', line: 'Sep 12 to 14 · not in yet', live: false },
+      ]}
+      chat={{ initial: { me, isCommish: true, names: Object.fromEntries(PLAYERS.map((p) => [p.id, p])), messages: [
+        { id: 'm1', user_id: 'u-kevin', body: 'who took the Jets lol', created_at: new Date(NOW - 3600_000).toISOString() },
+        { id: 'm2', user_id: 'u-colin', body: 'me. and I would do it again', created_at: new Date(NOW - 3500_000).toISOString() },
+        { id: 'm3', user_id: 'u-sam', body: 'GB in the red zone, Colin is sweating', created_at: new Date(NOW - 120_000).toISOString() },
+      ], calls: [{ id: 'c1', user_id: 'u-kevin', created_at: new Date(NOW - 7 * 3600_000).toISOString(), body: 'Bills by a touchdown, book it', text: 'BUF by 7', grade: 'miss', matchup: 'KC @ BUF' }] } }}>
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
         <span className="pill pill-warn">Preview · fixture data · clock frozen at Sun 4:40 PM ET</span>
         <Link href="/dev" className="underline">picks</Link>

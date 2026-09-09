@@ -19,6 +19,9 @@ export async function middleware(request) {
     }
   );
   await supabase.auth.getUser();
+  // Remember the league you were in, so the home page can take you straight back.
+  const m = request.nextUrl.pathname.match(/^\/l\/([0-9a-f-]{36})(\/|$)/i);
+  if (m) response.cookies.set('pp_last_league', m[1], { path: '/', maxAge: 60 * 60 * 24 * 90, sameSite: 'lax' });
   return response;
 }
 
