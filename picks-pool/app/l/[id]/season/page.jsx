@@ -31,13 +31,6 @@ export default async function Season({ params }) {
       return { games: sg, entries: se, rows: r.rows, complete: r.complete };
     }));
   }
-  const stats = seasonStats(games, entries, picks, payouts, { scoring: league.scoring, lock }).map((s) => ({
-    ...s,
-    name: names.get(s.user_id)?.display_name ?? 'Player',
-    emoji: names.get(s.user_id)?.emoji ?? '',
-    ...(duels ? { duels: recordText(duels.get(s.user_id)), duelWins: duels.get(s.user_id)?.won ?? 0 } : {}),
-    ...(draftWins ? { draftWins: draftWins.get(s.user_id) ?? 0 } : {}),
-  }));
   // The weekly draft: weeks won, from every slate the draft has dealt.
   let draftWins = null;
   if (league.draft) {
@@ -50,6 +43,13 @@ export default async function Season({ params }) {
       }
     }
   }
+  const stats = seasonStats(games, entries, picks, payouts, { scoring: league.scoring, lock }).map((s) => ({
+    ...s,
+    name: names.get(s.user_id)?.display_name ?? 'Player',
+    emoji: names.get(s.user_id)?.emoji ?? '',
+    ...(duels ? { duels: recordText(duels.get(s.user_id)), duelWins: duels.get(s.user_id)?.won ?? 0 } : {}),
+    ...(draftWins ? { draftWins: draftWins.get(s.user_id) ?? 0 } : {}),
+  }));
   // Call it: hit rate per person over the season's graded calls.
   let receipts = [];
   if (league.calls) {
