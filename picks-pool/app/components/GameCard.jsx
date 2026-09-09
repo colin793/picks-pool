@@ -101,7 +101,7 @@ export default function GameCard({ game: g, pick, onPick, now, draws = false, ho
   if (split) extras.push({ key: 'split', node: <span className={split.lone ? 'font-semibold text-warn' : ''}>{split.lone ? '🐺 ' : ''}{split.text}</span> });
 
   return (
-    <div className={`min-w-0 rounded-xl border bg-surface2/60 p-2 ${live ? 'border-accent/50' : 'border-line'} ${live && g.red_zone ? 'redzone' : ''}`}>
+    <div className={`relative min-w-0 rounded-xl border bg-surface2/60 p-2 ${live ? 'border-accent/50' : 'border-line'} ${live && g.red_zone ? 'redzone' : ''}`}>
       <div className="flex items-stretch gap-1.5 sm:gap-2">
         {side(homeFirst ? 'HOME' : 'AWAY')}
         {draws ? (

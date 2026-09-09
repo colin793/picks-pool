@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { loadMatchup } from '../../lib/actions';
 import { notesEmpty } from '../../lib/scores/matchup';
 import { DEMO_NOTES } from '../../lib/fixtures';
@@ -14,6 +14,18 @@ export default function MatchupFold({ game: g, take = { home: [], away: [] }, ho
   const [notes, setNotes] = useState(undefined); // undefined: not asked yet; null: nothing there
   const [pending, start] = useTransition();
   const hasTake = take.home.length + take.away.length > 0;
+  const panel = useRef(null);
+
+  // On a laptop the fold floats over the cards below instead of pushing the
+  // row down; a click anywhere else, or Escape, closes it.
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (panel.current && !panel.current.contains(e.target)) setOpen(false); };
+    const key = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', away);
+    document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', key); };
+  }, [open]);
 
   function toggle() {
     const next = !open;
@@ -42,12 +54,12 @@ export default function MatchupFold({ game: g, take = { home: [], away: [] }, ho
   const has = (key) => notes && sides.some((s) => notes[key]?.[s]?.length);
 
   return (
-    <div className="mt-1.5 px-1">
+    <div ref={panel} className="mt-1.5 px-1">
       <button type="button" onClick={toggle} aria-expanded={open} className="text-[11px] font-semibold text-ink2 hover:underline">
         {open ? 'Hide' : 'About this matchup'}
       </button>
       {open && (
-        <div className="mt-2 space-y-4 rounded-lg border border-line bg-surface p-3 text-[13px] leading-relaxed">
+        <div className="mt-2 space-y-4 rounded-lg border border-line bg-surface p-3 text-[13px] leading-relaxed lg:absolute lg:inset-x-2 lg:top-full lg:z-30 lg:-mt-1 lg:max-h-[70vh] lg:overflow-y-auto lg:shadow-xl">
           {(records || notes?.venue) && (
             <p className="text-ink2">
               {records && sides.map((s) => <span key={s} className="mr-3"><span className="font-display font-bold text-ink">{abbr(s)}</span> {rec(s) || '–'}</span>)}

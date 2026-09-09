@@ -92,7 +92,7 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(min(100%,330px),1fr))]">
+      <div className="grid items-start gap-2.5 grid-cols-[repeat(auto-fill,minmax(min(100%,330px),1fr))]">
         {active.map((g) => (
           <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} scoring={scoring} take={takeFor(g)} demo={demo}
             lockMode={lockMode} isLock={lock === g.id} onLock={() => setLock((l) => (l === g.id ? null : g.id))}
