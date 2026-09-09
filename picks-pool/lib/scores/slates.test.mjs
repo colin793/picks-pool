@@ -85,7 +85,7 @@ const event = (overrides = {}) => ({
   status: { type: { state: 'post', shortDetail: 'Final' } },
   competitions: [{
     competitors: [
-      { homeAway: 'home', score: '27', team: { abbreviation: 'SEA', shortDisplayName: 'Seahawks', logo: 'sea.png', color: '002A5C' } },
+      { homeAway: 'home', score: '27', team: { abbreviation: 'SEA', shortDisplayName: 'Seahawks', logo: 'sea.png', color: '002A5C', alternateColor: '69be28' } },
       { homeAway: 'away', score: '24', team: { abbreviation: 'NE', shortDisplayName: 'Patriots', logo: 'ne.png', color: '#002244' } },
     ],
   }],
@@ -106,6 +106,8 @@ assert.equal(row.away_score, 24);
 assert.equal(row.winner, 'HOME');
 assert.equal(row.home_color, '#002a5c'); // normalized to a lowercase 6-digit hex
 assert.equal(row.away_color, '#002244'); // a leading # from ESPN is tolerated
+assert.equal(row.home_alt_color, '#69be28'); // the second color rides along
+assert.equal(row.away_alt_color, '');        // and is blank when ESPN sends none
 assert.equal(row.home_rank, null);        // no curatedRank on the event: unranked
 assert.equal(row.home_conf, '');
 assert.equal(row.broadcast, '');          // no broadcasts block: nothing to show
