@@ -8,11 +8,6 @@ import { outcome } from '../../lib/stats';
 import { countdown } from '../../lib/moments';
 import { CheckPop } from './Pops';
 
-// Group games by their Eastern calendar day: "Thursday, Sep 10".
-function dayOf(iso) {
-  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' }).format(new Date(iso));
-}
-
 // allPicks: every pick the viewer may see (own always, others' once a game
 // kicks off); entryCount: how many entries the slate has. Together they say
 // how the room split on a locked game.
@@ -44,24 +39,13 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
   // The room's take per side of each card, from lib/room.js lines keyed by team.
   const takeFor = (g) => (takes ? { home: takes[g.home_abbr] ?? [], away: takes[g.away_abbr] ?? [] } : null);
 
-  const groups = useMemo(() => {
-    const m = new Map();
-    for (const g of games) {
-      const k = dayOf(g.kickoff);
-      if (!m.has(k)) m.set(k, []);
-      m.get(k).push(g);
-    }
-    return [...m.entries()];
-  }, [games]);
-
-  // What you can act on comes first. Once something is open, a day whose
-  // games have all finished drops to the bottom, folded to one line. A day
-  // with a game still in progress stays up top: that is the one to sweat.
-  const finished = ([, gs]) => gs.every((g) => g.state === 'post');
-  const active = openGames.length ? groups.filter((d) => !finished(d)) : groups;
-  const done = openGames.length ? groups.filter(finished) : [];
-  const [shown, setShown] = useState(() => new Set());
-  const toggle = (day) => setShown((prev) => { const next = new Set(prev); next.has(day) ? next.delete(day) : next.add(day); return next; });
+  // One grid, in kickoff order, so a lone Thursday game does not sit on a row
+  // of its own: the card carries its own day and time. Once anything is open,
+  // the games already final fold into one line at the bottom.
+  const ordered = useMemo(() => [...games].sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff) || String(a.id).localeCompare(String(b.id))), [games]);
+  const active = openGames.length ? ordered.filter((g) => g.state !== 'post') : ordered;
+  const done = openGames.length ? ordered.filter((g) => g.state === 'post') : [];
+  const [showDone, setShowDone] = useState(false);
 
   // The next lock as a countdown once it is inside a day; amber inside an hour, red inside ten minutes.
   const cd = countdown(games, now);
@@ -108,41 +92,35 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
 
   return (
     <div className="space-y-5">
-      {active.map(([day, gs]) => (
-        <section key={day}>
-          <h2 className="eyebrow mb-2">{day}</h2>
-          <div className="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(min(100%,330px),1fr))]">
-            {gs.map((g) => (
-              <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} scoring={scoring} take={takeFor(g)} demo={demo}
-                lockMode={lockMode} isLock={lock === g.id} onLock={() => setLock((l) => (l === g.id ? null : g.id))}
-                onPick={(side) => setPicks((p) => ({ ...p, [g.id]: side }))} />
-            ))}
-          </div>
-        </section>
-      ))}
+      <div className="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(min(100%,330px),1fr))]">
+        {active.map((g) => (
+          <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} scoring={scoring} take={takeFor(g)} demo={demo}
+            lockMode={lockMode} isLock={lock === g.id} onLock={() => setLock((l) => (l === g.id ? null : g.id))}
+            onPick={(side) => setPicks((p) => ({ ...p, [g.id]: side }))} />
+        ))}
+      </div>
 
-      {done.map(([day, gs]) => {
-        const open = shown.has(day);
-        const right = gs.filter((g) => picks[g.id] && outcome(g, scoring) === picks[g.id]).length;
-        const played = gs.filter((g) => picks[g.id]).length;
+      {done.length > 0 && (() => {
+        const right = done.filter((g) => picks[g.id] && outcome(g, scoring) === picks[g.id]).length;
+        const played = done.filter((g) => picks[g.id]).length;
         return (
-          <section key={day}>
-            <button type="button" onClick={() => toggle(day)} aria-expanded={open}
+          <section>
+            <button type="button" onClick={() => setShowDone((v) => !v)} aria-expanded={showDone}
               className="flex w-full items-center gap-2 rounded-lg border border-line bg-surface2/60 px-3 py-2 text-left hover:border-ink2/40">
-              <span className="eyebrow shrink-0 whitespace-nowrap">{day}</span>
-              <span className="min-w-0 truncate text-xs text-muted">{gs.length} final{played ? ` · you went ${right} for ${played}` : ''}</span>
-              <span className="ml-auto text-xs font-semibold text-ink2">{open ? 'Hide' : 'Show'}</span>
+              <span className="eyebrow shrink-0 whitespace-nowrap">Finals so far</span>
+              <span className="min-w-0 truncate text-xs text-muted">{done.length} final{done.length === 1 ? '' : 's'}{played ? ` · you went ${right} for ${played}` : ''}</span>
+              <span className="ml-auto text-xs font-semibold text-ink2">{showDone ? 'Hide' : 'Show'}</span>
             </button>
-            {open && (
+            {showDone && (
               <div className="mt-2 grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(min(100%,330px),1fr))]">
-                {gs.map((g) => (
+                {done.map((g) => (
                   <GameCard key={g.id} game={g} pick={picks[g.id]} now={now} draws={draws} homeFirst={homeFirst} consensus={consensus.get(g.id)} scoring={scoring} take={takeFor(g)} demo={demo} lockMode={lockMode} isLock={lock === g.id} />
                 ))}
               </div>
             )}
           </section>
         );
-      })}
+      })()}
 
       {/* Keeps the last row of games clear of the docked bar below. */}
       <div aria-hidden className="h-24 lg:h-20" />
@@ -151,14 +129,14 @@ export default function PicksForm({ leagueId, season, slate, games, initialPicks
           desktop. Fixed rather than sticky so it never floats over the cards. */}
       <div
         className="fixed inset-x-0 z-20 border-t border-line bg-surface/95 shadow-[0_-8px_24px_-16px_rgba(0,0,0,.35)] backdrop-blur
-          bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] lg:bottom-0 lg:left-[var(--sidebar-w)]"
+          bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] lg:bottom-0 lg:left-[var(--sidebar-w)] xl:right-[var(--dock-right)]"
       >
         {/* Progress across the top edge: how much of the open slate is picked. */}
         <div className="absolute inset-x-0 top-[-1px] h-0.5 bg-line" aria-hidden>
           <div className="h-full bg-accent transition-[width] duration-300"
             style={{ width: openGames.length ? `${Math.round((pickedOpen / openGames.length) * 100)}%` : '0%' }} />
         </div>
-        <div className="mx-auto max-w-5xl xl:max-w-[1400px] 2xl:max-w-[1800px] min-[2200px]:max-w-[2400px] px-4 py-2.5 lg:px-8 lg:py-3">
+        <div className="mx-auto max-w-[1400px] px-4 py-2.5 lg:px-8 lg:py-3">
           <div className="flex items-center gap-3">
             <label className="flex min-w-0 items-center gap-2">
               <span className="shrink-0 text-xs font-semibold text-ink2">Tiebreaker</span>

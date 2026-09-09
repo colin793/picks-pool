@@ -305,6 +305,35 @@ export async function deleteMessage(leagueId, id) {
   revalidatePath(`/l/${leagueId}/chat`);
 }
 
+// What the docked chat shows: the last messages and calls, graded, with the
+// names to put on them. Polled by the dock every 15 seconds. RLS: members.
+export async function loadChat(leagueId) {
+  const user = await currentUser();
+  if (!user) redirect('/login');
+  const db = sb();
+  const [{ data: messages }, { data: members }, { data: league }] = await Promise.all([
+    db.from('messages').select('*').eq('league_id', leagueId).order('created_at', { ascending: false }).limit(80),
+    db.from('memberships').select('user_id, profiles(display_name, emoji)').eq('league_id', leagueId),
+    db.from('leagues').select('calls, commissioner').eq('id', leagueId).maybeSingle(),
+  ]);
+  let calls = [];
+  if (league && league.calls !== false) {
+    const { data: rows } = await db.from('calls').select('*').eq('league_id', leagueId).order('created_at', { ascending: false }).limit(40);
+    const ids = [...new Set((rows ?? []).map((c) => c.game_id))];
+    const { data: games } = ids.length ? await db.from('games').select('*').in('id', ids) : { data: [] };
+    const { callText, gradeCall } = await import('./calls.js');
+    const byId = new Map((games ?? []).map((g) => [g.id, g]));
+    calls = (rows ?? []).map((c) => { const g = byId.get(c.game_id); return { id: c.id, user_id: c.user_id, created_at: c.created_at, body: c.body, text: callText(c, g), grade: gradeCall(c, g), matchup: g ? `${g.away_abbr} @ ${g.home_abbr}` : '' }; });
+  }
+  return {
+    me: user.id,
+    isCommish: league?.commissioner === user.id,
+    names: Object.fromEntries((members ?? []).map((m) => [m.user_id, m.profiles ?? {}])),
+    messages: (messages ?? []).reverse(),
+    calls,
+  };
+}
+
 // ---------- scores (commissioner) ----------
 
 // Force a score sync for this league's sport, throttle or no throttle.

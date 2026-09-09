@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { sb, currentUser } from '../lib/supabase';
 import { signOut, joinByCode } from '../lib/actions';
 import { sport as sportOf } from '../lib/scores/sports';
@@ -16,6 +17,10 @@ export default async function Home({ searchParams }) {
     db.from('profiles').select('*').eq('id', user.id).single(),
   ]);
   const leagues = (memberships ?? []).map((m) => m.leagues).filter(Boolean);
+  // Like Sleeper: the app opens on the league you were last in. ?all=1 (the
+  // phone's home icon) and the notices below show the list instead.
+  const last = cookies().get('pp_last_league')?.value;
+  if (!searchParams?.all && !searchParams?.notmember && !searchParams?.deleted && last && leagues.some((l) => l.id === last)) redirect(`/l/${last}`);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
